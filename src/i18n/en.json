@@ -878,6 +878,21 @@
       "meal_partly_added": "Some ingredients could not be added: {names}",
       "meal_none_added": "Could not add this meal. Check your connection and try again.",
       "meal_stale_ingredients": "Added to diary. These ingredients are no longer in your foods: {names}. Edit the meal to fix them."
+    },
+    "list": {
+      "name": "Name",
+      "basis": "Basis",
+      "kcal": "kcal",
+      "protein": "P",
+      "carbs": "C",
+      "sugars": "Sugar",
+      "fat": "F",
+      "price": "Price",
+      "price_100": "SEK/100",
+      "sort_by": "Sort by {col}",
+      "per_100_note": "Every value is per 100 g/ml of the food, so packs and glasses compare directly. Price per 100 is mass-only.",
+      "as_table": "Compare as a table",
+      "as_cards": "Show as cards"
     }
   },
   "trace": {

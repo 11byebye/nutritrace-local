@@ -30,10 +30,24 @@
   import { resolveAssetUrl, isNative } from '../lib/platform.js';
   import { itemSourceRef } from '../lib/item-source.js';
   import { offCountryTagToFlag, offCountryTagToName } from '../lib/off-country-flag.js';
+  import FoodListTable from '../components/foods/FoodListTable.svelte';
+  import { foodsListView } from '../stores/settings.js';
   import { foodsShowThumbnails, foodsShowCategories, foodsShowLabels, foodsShowNotes, foodsSort, mealsSort, recipesSort, foodCategories, foodsShowYesterdayMeals, foodsYesterdayCollapsed, foodsSavedCollapsed, mealNames, usdaEnabled, usdaApiKey, offEnabled, offSearchCountry, offSearchLanguage, foodsDefaultSource, diaryDefaultField, catName as _catName, catDisplay as _catDisplay, pageBanners, bannerStyle, energyUnit } from '../stores/settings.js';
   import { mealIcon } from '../lib/mealIcon.js';
   import { focusDefaultField } from '../lib/default-field.js';
   import { pageScrollTop, restorePageScroll } from '../lib/scroll-anchor.js';
+
+  // The comparison table needs columns; a 9-column grid at phone width is
+  // worse than the cards it replaces, so the toggle only applies from 720px.
+  let _wideList = true;
+  function _syncListWidth() {
+    if (typeof window === 'undefined') return;
+    _wideList = window.matchMedia('(min-width: 720px)').matches;
+  }
+  if (typeof window !== 'undefined') {
+    _syncListWidth();
+    window.addEventListener('resize', _syncListWidth);
+  }
 
   // Query string params
   function qs() {
@@ -2031,6 +2045,14 @@
         bind:this={_searchInputEl}
         bind:value={search}
       />
+      {#if activeTab === 0 && _wideList && searchSource !== 'all'}
+        <button class="btn-scan-inline" on:click={() => foodsListView.set(!$foodsListView)}
+          aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
+          title={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
+          class:active={$foodsListView}>
+          <span class="material-symbols-rounded">{$foodsListView ? 'view_agenda' : 'table_rows'}</span>
+        </button>
+      {/if}
       <button class="btn-scan-inline" on:click={() => scannerOpen = true} aria-label={$_('foods.scan_barcode')} title={$_('foods.scan_barcode')}>
         <span class="material-symbols-rounded">barcode_scanner</span>
       </button>
@@ -2343,6 +2365,15 @@
         {@const _renderList = (search || activeCategoryFilter)
           ? filteredList
           : [...filteredList.filter(f => f.favorite), ...filteredList.filter(f => !f.favorite)]}
+        {#if $foodsListView && activeTab === 0 && _wideList && !manageMode}
+          <FoodListTable
+            foods={_renderList}
+            {pickMode}
+            {selectedFoods}
+            onPick={pickFood}
+            onSelect={toggleSelect}
+          />
+        {:else}
         <ul class="food-list">
           {#each _renderList as food (food.id)}
             {@const _sel = selectedFoods.has(food)}
@@ -2405,6 +2436,7 @@
             </li>
           {/each}
         </ul>
+        {/if}
       {/if}
 
     {:else}

@@ -35,7 +35,7 @@ export const USER_PREFS = new Set([
   'diaryDefaultField',
   'diaryShowActivity','manualActivityPolicy','activityAutoEstimate','calorieAdjustFromActivity',
   'showQuickCalories','quickCaloriesDisplay',
-  'foodsShowCategories','foodsShowLabels','foodsShowNotes','foodsShowThumbnails',
+  'foodsShowCategories','foodsShowLabels','foodsShowNotes','foodsShowThumbnails','foodsListView',
   'foodsShowYesterdayMeals','foodsYesterdayCollapsed','foodsSavedCollapsed','foodsSort','mealsSort','recipesSort',
   'foodsDefaultSource',
   'updateCheckInterval', // hours between checks: 1, 4, 12, 24, or 0 for manual only
@@ -627,6 +627,10 @@ export const foodsShowCategories    = createSettingStore('foodsShowCategories', 
 export const foodsShowLabels        = createSettingStore('foodsShowLabels',        true);
 export const foodsShowNotes         = createSettingStore('foodsShowNotes',         true);
 export const foodsShowThumbnails    = createSettingStore('foodsShowThumbnails',    true);
+// Foods tab: card list (default) or the comparison table. The table is a
+// per-100 view for choosing between foods; cards stay the phone and
+// "what did I eat" shape.
+export const foodsListView          = createSettingStore('foodsListView',          false);
 export const foodsShowYesterdayMeals= createSettingStore('foodsShowYesterdayMeals',true);
 // Foods → Meals tab: per-section collapse state (only takes effect when both Yesterday and Saved
 // sections are visible — i.e. yesterday has items + user is in pick mode). Default expanded.
