@@ -47,6 +47,7 @@
   if (typeof window !== 'undefined') {
     _syncListWidth();
     window.addEventListener('resize', _syncListWidth);
+    onDestroy(() => window.removeEventListener('resize', _syncListWidth));
   }
 
   // Query string params

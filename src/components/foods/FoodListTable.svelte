@@ -152,7 +152,11 @@
                 {#if food.favorite}<span class="material-symbols-rounded fav">favorite</span>{/if}
                 {food.name}
               </span>
-              {#if food.brand}<span class="cell-brand">{food.brand}</span>{/if}
+              {#if food.brand || food._shared_by}
+                <span class="cell-brand">
+                  {food.brand || ''}{#if food.brand && food._shared_by} · {/if}{#if food._shared_by}by {food._shared_by}{/if}
+                </span>
+              {/if}
             </td>
             <td class="col-basis">{amountAndUnit(Number(food.portion) || 100, food.unit || 'g')}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
