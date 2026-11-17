@@ -2046,18 +2046,21 @@
         bind:this={_searchInputEl}
         bind:value={search}
       />
-      {#if activeTab === 0 && _wideList && searchSource !== 'all'}
-        <button class="btn-scan-inline" on:click={() => foodsListView.set(!$foodsListView)}
-          aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
-          title={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
-          class:active={$foodsListView}>
-          <span class="material-symbols-rounded">{$foodsListView ? 'view_agenda' : 'table_rows'}</span>
-        </button>
-      {/if}
       <button class="btn-scan-inline" on:click={() => scannerOpen = true} aria-label={$_('foods.scan_barcode')} title={$_('foods.scan_barcode')}>
         <span class="material-symbols-rounded">barcode_scanner</span>
       </button>
     </div>
+    <!-- Beside the pill, not inside it: .btn-scan-inline is absolutely
+         positioned at right:5px, so a second one would hide behind the scan
+         button (2026-11-17: the toggle was invisible for exactly that). -->
+    {#if activeTab === 0 && _wideList && searchSource !== 'all'}
+      <button class="btn-icon list-toggle" class:accent={$foodsListView}
+        on:click={() => foodsListView.set(!$foodsListView)}
+        aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
+        title={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}>
+        <span class="material-symbols-rounded">{$foodsListView ? 'view_agenda' : 'table_rows'}</span>
+      </button>
+    {/if}
   </div>
 
   <!-- Mobile chip rows — horizontal scroll inside the sticky bar
@@ -3230,6 +3233,7 @@
     display: flex;
     align-items: center;
   }
+  .list-toggle { flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-full); }
   .foods-search-input {
     width: 100%;
     background: var(--surface-2);
