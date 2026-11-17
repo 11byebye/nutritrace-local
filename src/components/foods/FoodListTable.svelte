@@ -168,9 +168,6 @@
     </button>
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
-  <p class="listview-note">
-    {$_('foods.list.per_100_note')}
-  </p>
   <div class="listview-scroll">
     <table class="food-table">
       <thead>
@@ -236,11 +233,6 @@
 
 <style>
   .listview { display: flex; flex-direction: column; gap: 8px; }
-  .listview-note {
-    margin: 0;
-    font-size: 11px;
-    color: var(--text-3);
-  }
   .listview-scroll {
     overflow-x: auto;
     border: 1px solid var(--border);
@@ -341,7 +333,6 @@
       background: var(--surface-1);
       box-shadow: 1px 0 0 var(--border);
     }
-    .listview-note { font-size: 10px; }
     .chip { padding: 4px 9px; font-size: 11px; }
   }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
