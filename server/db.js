@@ -498,6 +498,17 @@ if (!columnExists('foods', 'visibility')) {
 if (!columnExists('foods', 'source_id')) {
   db.exec(`ALTER TABLE foods ADD COLUMN source_id INTEGER`);
 }
+
+// Local fork (sysadmin 2026-11-15): shelf price. `price` is what the
+// package cost (SEK), `package_weight_g` how heavy it was, so a receipt
+// line reads in as-is ("21.90 / 500 g") and per-100 g is derived at read
+// time (server/lib/price.js). Both nullable: unknown price stays unknown.
+if (!columnExists('foods', 'price')) {
+  db.exec(`ALTER TABLE foods ADD COLUMN price REAL`);
+}
+if (!columnExists('foods', 'package_weight_g')) {
+  db.exec(`ALTER TABLE foods ADD COLUMN package_weight_g REAL`);
+}
 if (!columnExists('meals', 'visibility')) {
   db.exec(`ALTER TABLE meals ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'`);
 }

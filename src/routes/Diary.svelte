@@ -10,6 +10,7 @@
   import { resolveGoalFor } from '../lib/goal-resolver.js';
   import { fade, slide, fly } from 'svelte/transition';
   import { tweened } from 'svelte/motion';
+  import { costOf, sumCost } from '../lib/price.js';
   import { cubicOut } from 'svelte/easing';
 
   import MacroRing    from '../components/diary/MacroRing.svelte';
@@ -513,6 +514,11 @@
   $: _calTween.set(Math.round(totals.calories || 0),       { duration: $disableAnimations ? 0 : 500 });
   // Animated calorie total formatted for the user's chosen energy unit (kcal/kJ)
   $: _sumEnergy = Nutrition.displayEnergy($_calTween, $energyUnit);
+
+  // Local fork (2026-11-15): the day's food cost. Items carry the price
+  // snapshot of the food they were logged from, so this needs no lookup.
+  // Null when nothing logged today was priced.
+  $: _dayCost = sumCost((entry?.items || []).map(it => ({ cost: costOf(it, it.portion, it.unit) })));
 
   // Restore scroll position after food added from Foods page
   $: if (editorState.lastMealAdded != null) {
@@ -1857,6 +1863,7 @@
   {#if $diaryRailShowSummary}
     <DaySummaryWidget
       eatenKcal={$_calTween}
+      dayCost={_dayCost}
       protein={$_protTween}
       carbs={$_carbTween}
       fat={$_fatTween}

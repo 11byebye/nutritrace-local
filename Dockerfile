@@ -1,5 +1,8 @@
 # ── Stage 1: Build Svelte frontend ──────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM node:20-alpine AS build
+# Local fork (2026-11-15): the upstream multi-arch build needs BuildKit
+# (--platform=$BUILDPLATFORM); this box builds natively on arm64 with the
+# classic builder, so the platform pin is dropped here.
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 # scripts/postinstall.cjs is referenced by the "postinstall" npm hook, so it

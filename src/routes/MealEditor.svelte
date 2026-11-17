@@ -16,6 +16,7 @@
   import UnitPicker from '../components/ui/UnitPicker.svelte';
   import ImageCropper from '../components/ui/ImageCropper.svelte';
   import { scaleFactor as _unitScaleFactor, amountAndUnit } from '../lib/units.js';
+  import { costOf, sumCost } from '../lib/price.js';
   import { showSuccess, showError } from '../stores/toast.js';
   import { editorState, clearMealEditorState } from '../stores/editorState.js';
   import { Nutrition, NUTRIMENTS } from '../lib/nutrition.js';
@@ -795,6 +796,22 @@
   let showAllNutrients = false;
   $: totals = Nutrition.sum((meal.items||[]).map(i => Nutrition.calculate(i)));
 
+  // Money shown the Swedish way (comma), same as the food editor.
+  const _sek = (n, digits = 2) => Number(n).toFixed(digits).replace(".", ",");
+
+  // Local fork (2026-11-15): cost of the ingredient list. Each item carries
+  // the price snapshot of the food it came from; items with no price are
+  // skipped, so a partly priced recipe shows a floor, not a fake total.
+  $: _itemCosts = (meal.items || []).map(it => ({ cost: costOf(it, it.portion, it.unit) }));
+  $: _totalCost = sumCost(_itemCosts);
+  $: _pricedItems = _itemCosts.filter(c => c.cost != null).length;
+  $: _costPerServing = _totalCost != null
+    ? _totalCost / Math.max(1, parseInt(recipeYields) || 1)
+    : null;
+  $: _proteinPerSek = (_totalCost != null && Number(totals?.proteins) > 0)
+    ? Number(totals.proteins) / _totalCost
+    : null;
+
   // ── Category chips ─────────────────────────────────────────────────────────
   function toggleCat(cat) {
     const name = _catName(cat);
@@ -1114,6 +1131,27 @@
         {/if}
       </div>
     {/if}
+
+    <!-- Local fork (2026-11-15): what this meal or recipe costs. Shown
+         only when at least one ingredient carries a price. -->
+    {#if _totalCost != null}
+      <div class="card editor-card">
+        <div class="editor-card-title">Cost</div>
+        <p style="margin:0;font-size:14px">
+          <strong>{_sek(_totalCost)} SEK</strong>
+          {#if isRecipe && (parseInt(recipeYields) || 0) >= 1}
+            · {_sek(_costPerServing)} SEK / serving
+          {/if}
+          {#if _proteinPerSek != null} · {_sek(_proteinPerSek, 1)} g protein / SEK{/if}
+        </p>
+        {#if _pricedItems < (meal.items || []).length}
+          <p class="text-3" style="font-size:12px;margin:4px 0 0">
+            {_pricedItems} of {(meal.items || []).length} ingredients have a price; the total covers only those.
+          </p>
+        {/if}
+      </div>
+    {/if}
+
 
     <!-- Categories -->
     {#if $foodsShowCategories && $foodCategories && $foodCategories.length > 0}

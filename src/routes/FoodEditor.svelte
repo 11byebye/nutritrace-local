@@ -8,6 +8,7 @@
   import { pop, push } from 'svelte-spa-router';
   import { NtApi } from '../lib/api.js';
   import { NUTRIMENTS } from '../lib/nutrition.js';
+  import { pricePer100g, costOf, proteinPerSek, parseMoney } from '../lib/price.js';
   import { showSuccess, showError, showInfo } from '../stores/toast.js';
   import { offlineState } from '../lib/offline-api.js';
   import { offNutritionStatus, needsFullLookup, applyOffPrepared } from '../lib/off-nutrition.js';
@@ -122,6 +123,10 @@
     nutrition_basis: null,
     alt_units: [],
     density_g_ml: null,
+    // Local fork: shelf price. `price` is what the package cost (SEK) and
+    // `package_weight_g` its size, so a receipt line reads in as-is.
+    price: '',
+    package_weight_g: '',
     calories: '', kilojoules: '', fat: '', 'saturated-fat': '', 'trans-fat': '', 'polyunsaturated-fat': '', 'monounsaturated-fat': '', carbohydrates: '',
     sugars: '', 'added-sugars': '', proteins: '', salt: '', fiber: '',
     sodium: '', cholesterol: '', potassium: '', caffeine: '', alcohol: '',
@@ -314,6 +319,19 @@
       } catch { offVerified = false; }
     }, 3000);
   }
+
+  // Money is shown the Swedish way (comma), the way it reads on a receipt.
+  // The parser accepts either separator, so display and input agree.
+  const _sek = (n, digits = 2) => Number(n).toFixed(digits).replace(".", ",");
+  const _moneyField = v => (v == null || v === "" ? "" : String(v).replace(".", ","));
+
+  // Local fork (2026-11-15): live price math for the form. Both come from
+  // src/lib/price.js, the same helper the meal editor and diary use, so a
+  // number shown here is the number those screens will show.
+  $: _priceInput = { price: parseMoney(food.price), package_weight_g: parseMoney(food.package_weight_g) };
+  $: _pp100 = pricePer100g(_priceInput);
+  $: _servCost = costOf(_priceInput, parseDecimal(food.portion), food.unit);
+  $: _proteinSek = proteinPerSek(_priceInput, parseDecimal(food.portion), parseDecimal(food.proteins));
 
   function takeSnapshot() {
     const allNuts = [...NUTRIMENTS, ...($customNutriments || [])];
@@ -627,6 +645,12 @@
     // Capture the pre-overlay state so the banner's Discard button can
     // reset the form to what actually came from the server (or empty,
     // for the "add new" path).
+    // Money fields keep the receipt form on screen: a stored 21.9 loads
+    // as "21,9". Done once here, after both load branches (the list opens
+    // the editor through foodPrefill, not through params.id), so every
+    // path agrees with what the field accepts.
+    food = { ...food, price: _moneyField(food.price), package_weight_g: _moneyField(food.package_weight_g) };
+
     _serverBaseline = { ...food };
     try {
       const _draft = loadDraft(_draftKey);
@@ -709,6 +733,27 @@
     saving = false;
   }
 
+  // Local fork (2026-11-16): one product per shelf price. Copying a food
+  // keeps its macros, photo and price, then the copy is what you edit into
+  // "ICA Basic kyckling 700 g". Without this the only way to price a second
+  // tray was to retype every macro by hand.
+  async function duplicateFood() {
+    if (saving) return;
+    saving = true;
+    try {
+      const copy = { ...food, name: `${(food.name || "").trim()} (copy)`.trim() };
+      for (const k of ["id", "_shared_by", "_specific_users", "created_at", "updated_at",
+                       "usage_count", "last_used_at", "visibility", "favorite",
+                       "price_per_100g"]) delete copy[k];
+      const created = await NtApi.createFood(copy);
+      // Stay in the editor, now pointed at the new row: the next Save edits
+      // the copy, not the food you started from.
+      food = { ...food, id: created.id, name: copy.name };
+      showSuccess("Duplicated. Change the name, price and package size, then Save.");
+    } catch (e) { showError(e?.message || "Could not duplicate this food"); }
+    saving = false;
+  }
+
   async function save() {
     if (!food.name.trim()) {
       showError($_('food_editor.errors.name_required'));
@@ -738,6 +783,12 @@
         if (Object.keys(flags).length) _nutrition._derived = flags;
       }
       const item = { ...food, nutrition: _nutrition };
+      // Local fork: send numbers, not the raw field text. A receipt-style
+      // entry ("21,90 kr") would otherwise reach the server as a string and
+      // be dropped to null with no error shown (2026-11-16).
+      const _money = v => { const n = parseMoney(v); return Number.isFinite(n) && n > 0 ? n : null; };
+      item.price = _money(food.price);
+      item.package_weight_g = _money(food.package_weight_g);
       const saved = food.id
         ? await NtApi.updateFood(food.id, item)
         : await NtApi.createFood(item);
@@ -858,6 +909,10 @@
         {saving ? 'Copying…' : 'Save to My Catalog'}
       </button>
     {:else}
+      <button class="btn" style="height:36px;padding:0 12px;font-size:13px;white-space:nowrap;margin-right:8px"
+        on:click={duplicateFood} disabled={saving} title="Copy this food and its macros, then change the price">
+        Duplicate
+      </button>
       <button class="btn btn-primary" style="height:36px;padding:0 16px;font-size:13px"
         on:click={save} disabled={saving}>
         {saving ? 'Saving…' : 'Save'}
@@ -1000,6 +1055,37 @@
           <span class="material-symbols-rounded" style="font-size:20px">{linked ? 'link' : 'link_off'}</span>
         </button>
       </div>
+      <p class="text-3" style="font-size:12px;margin:0 0 4px">
+        Serving size is the amount the nutrition values below describe (the label's
+        per 100 g), not what you eat. When you log this food you enter the grams you had
+        and the app scales it.
+      </p>
+
+      <!-- Local fork (2026-11-15): shelf price. Type the receipt line
+           numbers only, no currency word: "21,90" and "500" is the whole
+           entry. The per-100 g figure falls out below. Left
+           blank means unknown, never free. -->
+      <div class="form-row" style="align-items:flex-end">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Price (SEK)</label>
+          <input class="input" type="text" inputmode="decimal" bind:value={food.price}
+            on:input={(e) => (food.price = e.currentTarget.value.replace(/[^0-9.,]/g, ""))}
+            placeholder="21,90" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Package size (g)</label>
+          <input class="input" type="text" inputmode="decimal" bind:value={food.package_weight_g}
+            on:input={(e) => (food.package_weight_g = e.currentTarget.value.replace(/[^0-9.,]/g, ""))}
+            placeholder="500" />
+        </div>
+      </div>
+      {#if _pp100 != null || _servCost != null}
+        <p class="text-3" style="font-size:12px;margin:0 0 4px">
+          {#if _pp100 != null}<strong>{_sek(_pp100)} SEK / 100 g</strong>{/if}
+          {#if _servCost != null && String(food.portion) !== "100"} · {food.portion} {food.unit} costs {_sek(_servCost)} SEK{/if}
+          {#if _proteinSek != null} · {_sek(_proteinSek, 1)} g protein / SEK{/if}
+        </p>
+      {/if}
 
       <!-- Issues #69 + #70: nutrition_basis + alt_units + density editor.
            Gated on _showUnitMetadataUI: visible only when the user opted

@@ -259,9 +259,10 @@ router.post('/:id/copy', wrap((req, res) => {
   if (u != null && meal.user_id === u) return res.status(400).json({ error: 'Already yours' });
   if (u != null && !canRead(meal, u)) return res.status(403).json({ error: 'Forbidden' });
 
-  // Already copied?
+  // Already copied? A deleted clone is a tombstone, not a copy (see
+  // the foods route).
   if (u != null) {
-    const existing = db.prepare('SELECT id FROM meals WHERE user_id = ? AND source_id = ?').get(u, meal.id);
+    const existing = db.prepare('SELECT id FROM meals WHERE user_id = ? AND source_id = ? AND deleted_at IS NULL').get(u, meal.id);
     if (existing) return res.json(parse(db.prepare('SELECT * FROM meals WHERE id = ?').get(existing.id)));
   }
 

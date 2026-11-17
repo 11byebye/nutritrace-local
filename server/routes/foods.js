@@ -10,6 +10,7 @@ import { sendFoodShared, isEmailConfigured } from '../email.js';
 import { logger } from '../logger.js';
 import { ownerOrOptIn } from '../lib/outbound-policy.js';
 import { cleanCreateKey, findByCreateKey, setCreateKey } from '../lib/create-keys.js';
+import { pricePer100g, parseMoney } from '../lib/price.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -102,10 +103,20 @@ function _normalizeDensity(v) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Price fields: undefined keeps the stored value, null/'' clears it, a
+// positive number stores it. Zero is treated as "unknown", not "free".
+// Tolerant parse: a receipt line arrives as "21,90" or "21.90 kr" as often
+// as it arrives as 21.9, and a silent Number() would store null
+// (2026-11-16: the first real save lost its price that way).
+function _normalizeMoney(v) {
+  const n = parseMoney(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // ── POST / ────────────────────────────────────────────────────────────────
 router.post('/', wrap(async (req, res) => {
   const { name, brand, nutrition, portion, unit, img_url, notes, category, barcode, visibility, source_id,
-    nutrition_basis, alt_units, density_g_ml,
+    nutrition_basis, alt_units, density_g_ml, price, package_weight_g,
     source_app, source_external_id, source_url } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
   const u = uid(req);
@@ -141,7 +152,7 @@ router.post('/', wrap(async (req, res) => {
         ? found.img_url
         : (_shouldLocalize ? await localizeImage(img_url, { trustedOrigins: trusted, allowPrivate: ownerOrOptIn(req, 'ALLOW_PRIVATE_IMAGE_URLS') }) : (img_url || null));
       db.prepare(
-        `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, nutrition_basis=?, alt_units=?, density_g_ml=?, source_url=?, updated_at=datetime('now') WHERE id=?`
+        `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, nutrition_basis=?, alt_units=?, density_g_ml=?, price=?, package_weight_g=?, source_url=?, updated_at=datetime('now') WHERE id=?`
       ).run(name ?? found.name, brand ?? found.brand,
         JSON.stringify(nutrition ?? JSON.parse(found.nutrition || '{}')),
         portion ?? found.portion, unit ?? found.unit, localImg2,
@@ -149,6 +160,8 @@ router.post('/', wrap(async (req, res) => {
         nutrition_basis === undefined ? found.nutrition_basis : (nutrition_basis || null),
         alt_units === undefined ? found.alt_units : _serializeAltUnitsForFood(alt_units),
         density_g_ml === undefined ? found.density_g_ml : _normalizeDensity(density_g_ml),
+        price === undefined ? found.price : _normalizeMoney(price),
+        package_weight_g === undefined ? found.package_weight_g : _normalizeMoney(package_weight_g),
         source_url === undefined ? found.source_url : (source_url || null),
         found.id);
       return res.status(200).json(parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(found.id)));
@@ -179,13 +192,14 @@ router.post('/', wrap(async (req, res) => {
     : isExternalUrl(img_url));
   const localImg = _shouldLocalizeNew ? await localizeImage(img_url, { trustedOrigins: trustedNew, allowPrivate: ownerOrOptIn(req, 'ALLOW_PRIVATE_IMAGE_URLS') }) : (img_url || null);
   const result = db.prepare(
-    `INSERT INTO foods (user_id, name, brand, nutrition, portion, unit, img_url, notes, category, barcode, visibility, source_id, nutrition_basis, alt_units, density_g_ml, source_app, source_external_id, source_url, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    `INSERT INTO foods (user_id, name, brand, nutrition, portion, unit, img_url, notes, category, barcode, visibility, source_id, nutrition_basis, alt_units, density_g_ml, price, package_weight_g, source_app, source_external_id, source_url, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(u, name, brand || null, JSON.stringify(nutrition || {}), portion ?? 100, unit || 'g',
     localImg, notes || null, category || null, barcode || null, vis, source_id || null,
     nutrition_basis || null,
     _serializeAltUnitsForFood(alt_units),
     _normalizeDensity(density_g_ml),
+    _normalizeMoney(price), _normalizeMoney(package_weight_g),
     cleanSourceApp, cleanSourceExtId, source_url || null);
   setCreateKey('foods', result.lastInsertRowid, createKey);
   res.status(201).json(parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(result.lastInsertRowid)));
@@ -198,7 +212,7 @@ router.put('/:id', wrap(async (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Not found' });
   if (u != null && existing.user_id !== u) return res.status(403).json({ error: 'Forbidden' });
   const { name, brand, nutrition, portion, unit, img_url, notes, category, barcode, visibility, favorite,
-    nutrition_basis, alt_units, density_g_ml } = req.body;
+    nutrition_basis, alt_units, density_g_ml, price, package_weight_g } = req.body;
   // For img_url: undefined → keep existing, null/'' → explicit clear,
   // any other value → localize-if-external-or-data-URL-then-store. Without
   // this distinction, the X-remove-photo button in FoodEditor doesn't
@@ -217,13 +231,16 @@ router.put('/:id', wrap(async (req, res) => {
   const nb = nutrition_basis === undefined ? existing.nutrition_basis : (nutrition_basis || null);
   const au = alt_units === undefined ? existing.alt_units : _serializeAltUnitsForFood(alt_units);
   const dg = density_g_ml === undefined ? existing.density_g_ml : _normalizeDensity(density_g_ml);
+  // Price: undefined keeps, null/'' clears, any other value is normalized.
+  const pr = price === undefined ? existing.price : _normalizeMoney(price);
+  const pw = package_weight_g === undefined ? existing.package_weight_g : _normalizeMoney(package_weight_g);
   db.prepare(
-    `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, visibility=?, favorite=?, nutrition_basis=?, alt_units=?, density_g_ml=?, updated_at=datetime('now') WHERE id=?`
+    `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, visibility=?, favorite=?, nutrition_basis=?, alt_units=?, density_g_ml=?, price=?, package_weight_g=?, updated_at=datetime('now') WHERE id=?`
   ).run(name ?? existing.name, brand ?? existing.brand,
     JSON.stringify(nutrition ?? JSON.parse(existing.nutrition || '{}')),
     portion ?? existing.portion, unit ?? existing.unit, localImg,
     notes ?? existing.notes, category ?? existing.category, barcode ?? existing.barcode,
-    visibility ?? existing.visibility, fav, nb, au, dg, req.params.id);
+    visibility ?? existing.visibility, fav, nb, au, dg, pr, pw, req.params.id);
   res.json(parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(req.params.id)));
 }));
 
@@ -322,9 +339,11 @@ router.post('/:id/copy', wrap((req, res) => {
   if (u != null && food.user_id === u) return res.status(400).json({ error: 'Already yours' });
   if (u != null && !canRead(food, u)) return res.status(403).json({ error: 'Forbidden' });
 
-  // Check not already copied
+  // Check not already copied. A deleted clone is a tombstone, not a
+  // copy: without the filter this answers 200 with the dead row and the
+  // client shows nothing, so the food can never be copied again.
   if (u != null) {
-    const existing = db.prepare('SELECT id FROM foods WHERE user_id = ? AND source_id = ?').get(u, food.id);
+    const existing = db.prepare('SELECT id FROM foods WHERE user_id = ? AND source_id = ? AND deleted_at IS NULL').get(u, food.id);
     if (existing) return res.json(parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(existing.id)));
   }
 
@@ -397,6 +416,8 @@ function parse(row) {
     ...row,
     nutrition: JSON.parse(row.nutrition || '{}'),
     alt_units: altUnits,
+    // Derived, never stored: the client and the phone both read this.
+    price_per_100g: pricePer100g(row),
     _specific_users: row._specific_users || undefined,
   };
 }

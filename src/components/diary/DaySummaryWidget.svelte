@@ -24,6 +24,11 @@
   export let carbs        = 0;
   export let fat          = 0;
 
+  // Local fork (2026-11-15): what the day's food cost, in SEK. Null when
+  // no logged item carries a price, so the line stays hidden rather than
+  // claiming "0.00".
+  export let dayCost          = null;
+
   // Goals
   export let goalKcal         = 2000;
   export let proteinGoal      = null;
@@ -91,6 +96,13 @@
       <span class="dsw-macro-lbl">Fat</span>
     </div>
   </div>
+
+  {#if dayCost != null}
+    <div class="dsw-cost" title="Sum of the prices of the foods logged today">
+      <span class="dsw-cost-lbl">Cost</span>
+      <span class="dsw-cost-val">{dayCost.toFixed(2).replace(".", ",")} SEK</span>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -187,6 +199,21 @@
     letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
   }
+  .dsw-cost {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .dsw-cost-lbl {
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dsw-cost-val { font-weight: 700; font-variant-numeric: tabular-nums; }
   .dsw-macro-lbl {
     font-size: 10px;
     font-weight: 600;

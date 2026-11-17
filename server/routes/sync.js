@@ -13,6 +13,7 @@ import db from '../db.js';
 import { wrap } from '../logger.js';
 import { requireAuth, userMgmtActive } from '../middleware/auth.js';
 import { logger } from '../logger.js';
+import { parseMoney } from '../lib/price.js';
 import { resolveNewItemVisibility } from '../lib/default-visibility.js';
 import { isServerOnlyKey } from '../lib/server-only-keys.js';
 import { localizeImage, isExternalUrl } from '../lib/image-localizer.js';
@@ -73,6 +74,13 @@ function _serializeAltUnitsForServer(v) {
     }))
     .filter(r => r.abbr && Number.isFinite(r.grams) && r.grams > 0);
   return clean.length ? JSON.stringify(clean) : null;
+}
+
+// Local fork (2026-11-15): price fields, same rule as foods.js — a
+// positive number stores, anything else becomes null (unknown, not free).
+function _moneyOrNull(v) {
+  const n = parseMoney(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function parse(row) {
@@ -293,7 +301,7 @@ router.post('/push', wrap(async (req, res) => {
             db.prepare(`UPDATE foods SET deleted_at = datetime('now'), updated_at = ? WHERE id = ?`).run(stamp(f.updated_at, existing), f.server_id);
           } else {
             db.prepare(
-              `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, favorite=?, usage_count=MAX(usage_count, ?), last_used_at=MAX(COALESCE(last_used_at, ''), COALESCE(?, '')), nutrition_basis=?, alt_units=?, density_g_ml=?, source_app=?, source_external_id=?, source_url=?, updated_at=? WHERE id=?`
+              `UPDATE foods SET name=?, brand=?, nutrition=?, portion=?, unit=?, img_url=?, notes=?, category=?, barcode=?, favorite=?, usage_count=MAX(usage_count, ?), last_used_at=MAX(COALESCE(last_used_at, ''), COALESCE(?, '')), nutrition_basis=?, alt_units=?, density_g_ml=?, price=?, package_weight_g=?, source_app=?, source_external_id=?, source_url=?, updated_at=? WHERE id=?`
             ).run(f.name, f.brand, JSON.stringify(f.nutrition || {}), f.portion ?? 100, f.unit || 'g',
               f.img_url || null, f.notes || null, f.category || null, f.barcode || null,
               f.favorite ? 1 : 0, f.usage_count || 0, f.last_used_at || null,
@@ -304,6 +312,9 @@ router.post('/push', wrap(async (req, res) => {
               f.density_g_ml != null && Number.isFinite(Number(f.density_g_ml))
                 ? Number(f.density_g_ml)
                 : null,
+              // Local fork: shelf price rides sync both ways, or a phone push
+              // would wipe what the web set.
+              _moneyOrNull(f.price), _moneyOrNull(f.package_weight_g),
               // Federation columns carry the CT pantry provenance across
               // cross-device pulls. Apps that don't send them, or send
               // them empty, keep what the row has instead of wiping it.
@@ -328,8 +339,8 @@ router.post('/push', wrap(async (req, res) => {
         if (fMade) { result.foods.push({ client_id: f.client_id, server_id: fMade.id }); continue; }
         const vis = resolveNewItemVisibility(u);
         const r = db.prepare(
-          `INSERT INTO foods (user_id, name, brand, nutrition, portion, unit, img_url, notes, category, barcode, favorite, usage_count, last_used_at, nutrition_basis, alt_units, density_g_ml, source_app, source_external_id, source_url, visibility, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          `INSERT INTO foods (user_id, name, brand, nutrition, portion, unit, img_url, notes, category, barcode, favorite, usage_count, last_used_at, nutrition_basis, alt_units, density_g_ml, price, package_weight_g, source_app, source_external_id, source_url, visibility, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
         ).run(u, f.name, f.brand || null, JSON.stringify(f.nutrition || {}), f.portion ?? 100, f.unit || 'g',
           f.img_url || null, f.notes || null, f.category || null, f.barcode || null,
           f.favorite ? 1 : 0, f.usage_count || 0, f.last_used_at || null,
@@ -338,6 +349,7 @@ router.post('/push', wrap(async (req, res) => {
           f.density_g_ml != null && Number.isFinite(Number(f.density_g_ml))
             ? Number(f.density_g_ml)
             : null,
+          _moneyOrNull(f.price), _moneyOrNull(f.package_weight_g),
           f.source_app || null, f.source_external_id || null, f.source_url || null,
           vis);
         setCreateKey('foods', r.lastInsertRowid, fKey);
