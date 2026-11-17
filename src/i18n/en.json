@@ -893,7 +893,10 @@
       "per_100_note": "Every value is per 100 g/ml of the food, so packs and glasses compare directly. Price, SEK/100 and P/SEK are mass-only: a food without a package weight, or measured in ml, leaves them blank.",
       "as_table": "Compare as a table",
       "as_cards": "Show as cards",
-      "protein_sek": "P/SEK"
+      "protein_sek": "P/SEK",
+      "show_food": "Food",
+      "show_drink": "Drink",
+      "filters_empty": "Both filters are off — turn Food or Drink back on."
     }
   },
   "trace": {

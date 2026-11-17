@@ -34,6 +34,23 @@
   let sortKey = 'name';
   let sortDir = 1;
 
+  // Show/hide by kind. Both on = everything, which is the default; they are
+  // filters, not a mode, so a comparison can be narrowed to drinks (wine,
+  // juice) or to food without losing the other rows.
+  let showFood = true;
+  let showDrink = true;
+
+  const DRINK_RE = /dryck|drink|beverage/i;
+
+  /** Drinks are the "Dryck" category or anything measured in ml. Category
+   *  alone would miss an OFF import with no category; ml alone would miss a
+   *  drink logged in grams. */
+  function isDrink(food) {
+    if (DRINK_RE.test(String(food?.category || ''))) return true;
+    return String(food?.unit || '').toLowerCase() === 'ml';
+  }
+
+
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
     { key: 'basis', label: 'foods.list.basis', align: 'left' },
@@ -112,8 +129,13 @@
     return per100(food, key) ?? -1;
   }
 
+  $: filtered = foods.filter((f) => {
+    const drink = isDrink(f);
+    return drink ? showDrink : showFood;
+  });
+
   $: sorted = (() => {
-    const rows = [...foods];
+    const rows = [...filtered];
     rows.sort((a, b) => {
       const va = sortValue(a, sortKey);
       const vb = sortValue(b, sortKey);
@@ -133,6 +155,19 @@
 </script>
 
 <div class="listview">
+  <div class="listview-bar">
+    <button type="button" class="chip" class:on={showFood}
+      aria-pressed={showFood} on:click={() => (showFood = !showFood)}>
+      <span class="material-symbols-rounded chip-icon">restaurant</span>
+      {$_('foods.list.show_food')}
+    </button>
+    <button type="button" class="chip" class:on={showDrink}
+      aria-pressed={showDrink} on:click={() => (showDrink = !showDrink)}>
+      <span class="material-symbols-rounded chip-icon">local_drink</span>
+      {$_('foods.list.show_drink')}
+    </button>
+    <span class="listview-count">{sorted.length} / {foods.length}</span>
+  </div>
   <p class="listview-note">
     {$_('foods.list.per_100_note')}
   </p>
@@ -159,6 +194,11 @@
         </tr>
       </thead>
       <tbody>
+        {#if sorted.length === 0}
+          <tr class="empty-row">
+            <td colspan={COLUMNS.length}>{$_('foods.list.filters_empty')}</td>
+          </tr>
+        {/if}
         {#each sorted as food (food.id)}
           {@const _kcal = per100(food, 'calories')}
           {@const _energy = _kcal == null ? null : Nutrition.displayEnergy(_kcal, $energyUnit)}
@@ -207,6 +247,32 @@
     border-radius: var(--radius-lg);
     background: var(--surface-1);
   }
+  .listview-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .chip.on {
+    background: var(--accent-dim);
+    border-color: transparent;
+    color: var(--accent);
+  }
+  .chip-icon { font-size: 15px; }
+  .listview-count { margin-left: auto; font-size: 11px; color: var(--text-3); }
+  .empty-row td { text-align: center; color: var(--text-3); padding: 18px 10px; }
   .food-table {
     width: 100%;
     border-collapse: collapse;
@@ -261,6 +327,23 @@
     white-space: nowrap;
   }
   .col-name { min-width: 190px; }
+  /* Phone: the table scrolls sideways with the name pinned, so a row keeps
+     its identity while the numbers slide. Hiding columns instead would hide
+     the very numbers being compared. */
+  @media (max-width: 719px) {
+    .food-table { font-size: 12px; }
+    thead th, td { padding: 6px 7px; }
+    .col-name { min-width: 150px; }
+    th.col-name, td.col-name {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--surface-1);
+      box-shadow: 1px 0 0 var(--border);
+    }
+    .listview-note { font-size: 10px; }
+    .chip { padding: 4px 9px; font-size: 11px; }
+  }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
   .col-basis { color: var(--text-2); white-space: nowrap; }

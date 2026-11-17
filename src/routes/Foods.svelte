@@ -37,18 +37,6 @@
   import { focusDefaultField } from '../lib/default-field.js';
   import { pageScrollTop, restorePageScroll } from '../lib/scroll-anchor.js';
 
-  // The comparison table needs columns; a 9-column grid at phone width is
-  // worse than the cards it replaces, so the toggle only applies from 720px.
-  let _wideList = true;
-  function _syncListWidth() {
-    if (typeof window === 'undefined') return;
-    _wideList = window.matchMedia('(min-width: 720px)').matches;
-  }
-  if (typeof window !== 'undefined') {
-    _syncListWidth();
-    window.addEventListener('resize', _syncListWidth);
-    onDestroy(() => window.removeEventListener('resize', _syncListWidth));
-  }
 
   // Query string params
   function qs() {
@@ -2053,7 +2041,7 @@
     <!-- Beside the pill, not inside it: .btn-scan-inline is absolutely
          positioned at right:5px, so a second one would hide behind the scan
          button (2026-11-17: the toggle was invisible for exactly that). -->
-    {#if activeTab === 0 && _wideList && searchSource !== 'all'}
+    {#if activeTab === 0 && searchSource !== 'all'}
       <button class="btn-icon list-toggle" class:accent={$foodsListView}
         on:click={() => foodsListView.set(!$foodsListView)}
         aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
@@ -2369,7 +2357,7 @@
         {@const _renderList = (search || activeCategoryFilter)
           ? filteredList
           : [...filteredList.filter(f => f.favorite), ...filteredList.filter(f => !f.favorite)]}
-        {#if $foodsListView && activeTab === 0 && _wideList && !manageMode}
+        {#if $foodsListView && activeTab === 0 && !manageMode}
           <FoodListTable
             foods={_renderList}
             {pickMode}

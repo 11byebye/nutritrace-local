@@ -630,7 +630,7 @@ export const foodsShowThumbnails    = createSettingStore('foodsShowThumbnails', 
 // Foods tab: card list (default) or the comparison table. The table is a
 // per-100 view for choosing between foods; cards stay the phone and
 // "what did I eat" shape.
-export const foodsListView          = createSettingStore('foodsListView',          false);
+export const foodsListView          = createSettingStore('foodsListView',          true);
 export const foodsShowYesterdayMeals= createSettingStore('foodsShowYesterdayMeals',true);
 // Foods → Meals tab: per-section collapse state (only takes effect when both Yesterday and Saved
 // sections are visible — i.e. yesterday has items + user is in pick mode). Default expanded.
