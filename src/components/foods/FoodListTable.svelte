@@ -11,6 +11,9 @@
    *
    * Units that are not mass or volume (each, slice) cannot be normalised, so
    * those cells stay blank rather than showing a confident wrong number.
+   * The two money columns are mass-only on purpose: the fork's price math
+   * divides by package grams, so an ml food gets no SEK/100 and no P/SEK
+   * rather than a number that pretends 1 ml = 1 g.
    */
   import { _ } from 'svelte-i18n';
   import { Nutrition } from '../../lib/nutrition.js';
@@ -41,6 +44,7 @@
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
     { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'price_100', label: 'foods.list.price_100', align: 'right' },
+    { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
 
   function sortBy(key) {
@@ -73,6 +77,21 @@
     return null;
   }
 
+  /** Grams of protein per krona, on the same 100 basis as the other columns.
+   *  Equal to (protein per 100 g) / (price per 100 g), so it needs no package
+   *  size and stays comparable between a 700 g tray and a 250 g one. */
+  function proteinSek(food) {
+    const protein = per100(food, 'proteins');
+    const price = price100(food);
+    if (protein == null || price == null || price <= 0) return null;
+    return protein / price;
+  }
+
+  function gramsPerKrona(value) {
+    if (value == null) return '';
+    return (value < 1 ? value.toFixed(2) : value.toFixed(1)).replace('.', ',');
+  }
+
   function show(value, digits = 1) {
     if (value == null) return '';
     if (Number.isInteger(value)) return String(value);
@@ -89,6 +108,7 @@
     if (key === 'basis') return String(food.unit || 'g');
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
+    if (key === 'protein_sek') return proteinSek(food) ?? -1;
     return per100(food, key) ?? -1;
   }
 
@@ -166,6 +186,7 @@
             <td class="col-fat right">{show(per100(food, 'fat'))}</td>
             <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money(price100(food))}</td>
+            <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
           </tr>
         {/each}
       </tbody>
