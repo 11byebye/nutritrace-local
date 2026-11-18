@@ -170,6 +170,32 @@ Protein
   assert.equal(stacked.nutrition.proteins, 13);
 });
 
+test('OCR confusion: keal / kI / missing diacritics still map', () => {
+  // Real tesseract output from a rendered ICA label (2026-11-18).
+  const text = `ICA Basic Kycklinginnerfile
+Naringsvarde per 100 g
+Energi 390 kI / 90 keal
+Fett 1g
+varav mattat fett 0,5 g
+Kolhydrat 0 g
+varav sockerarter 0 g
+Protein 20 g
+Salt 0,6 g`;
+  const got = parseLabelText(text);
+  assert.equal(got.nutrition.calories, 90);
+  assert.equal(got.nutrition.kilojoules, 390);
+  assert.equal(got.nutrition['saturated-fat'], 0.5);
+  assert.equal(got.nutrition.proteins, 20);
+  assert.equal(got.nutrition.salt, 0.6);
+  assert.equal(got.nutrition.sugars, 0);
+});
+
+test('energy: a stray kcai / kca1 spelling still reads as kcal', () => {
+  assert.deepEqual(parseEnergy('90 kca1'), { calories: 90 });
+  assert.deepEqual(parseEnergy('90 kcai'), { calories: 90 });
+  assert.deepEqual(parseEnergy('390 kI'), { kilojoules: 390, calories: 93.2 });
+});
+
 test('URLs stay on the fixed host', () => {
   assert.equal(productUrl('07318690093213'), 'https://matsiktet.se/produkt.php?gtin=07318690093213');
   assert.match(searchUrl('grädde 40%'), /^https:\/\/matsiktet\.se\/produkter\.php\?sok=gr%C3%A4dde%2040%25$/);

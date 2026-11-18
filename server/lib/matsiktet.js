@@ -63,12 +63,27 @@ export function parseAmount(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** "610 kJ / 150 kcal" -> { kilojoules: 610, calories: 150 } */
+/** Lowercase, deaccented text: OCR on a Swedish label often drops the ring
+ *  and dots ("Naringsvarde", "mattat fett"), and the tables must still map. */
+function fold(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .toLowerCase();
+}
+
+/**
+ * "610 kJ / 150 kcal" -> { kilojoules: 610, calories: 150 }.
+ * OCR confuses the units often enough to matter ("keal", "kca1", "kI"), so
+ * the pair is matched with those substitutions folded in rather than only
+ * the printed spelling.
+ */
 export function parseEnergy(raw) {
-  const s = String(raw || '').replace(/\u00a0/g, ' ');
+  const s = fold(raw);
   const out = {};
-  const kcal = s.match(/([\d.,]+)\s*kcal/i);
-  const kj = s.match(/([\d.,]+)\s*kJ/i);
+  const kcal = s.match(/([\d.,]+)\s*k\s*[ce]\s*a\s*[l1i]/);
+  const kj = s.match(/([\d.,]+)\s*k\s*[jil1](?![a-z])/);
   if (kcal) out.calories = parseAmount(kcal[1]);
   if (kj) out.kilojoules = parseAmount(kj[1]);
   if (out.calories == null && out.kilojoules != null) {
@@ -82,19 +97,20 @@ export function parseEnergy(raw) {
  * ("– Varav mättat fett" contains "fett"), and every pattern is anchored so a
  * category name cannot swallow a neighbour.
  */
+// Tested against the folded (deaccented) label text, see fold().
 const ROW_PATTERNS = [
-  [/^energi\b/i, 'energy'],
-  [/^(?:–|-|\.\.)?\s*varav\s+mättat\s+fett/i, 'saturated-fat'],
-  [/^(?:–|-|\.\.)?\s*varav\s+sockerarter/i, 'sugars'],
-  [/^fett\b/i, 'fat'],
-  [/^kolhydrat/i, 'carbohydrates'],
-  [/^fiber/i, 'fiber'],
-  [/^protein/i, 'proteins'],
-  [/^salt\b/i, 'salt'],
+  [/^energi\b/, 'energy'],
+  [/^(?:–|-|\.\.)?\s*varav\s+mattat\s+fett/, 'saturated-fat'],
+  [/^(?:–|-|\.\.)?\s*varav\s+sockerarter/, 'sugars'],
+  [/^fett\b/, 'fat'],
+  [/^kolhydrat/, 'carbohydrates'],
+  [/^fiber/, 'fiber'],
+  [/^protein/, 'proteins'],
+  [/^salt\b/, 'salt'],
 ];
 
 export function nutrientFromRow(label, value) {
-  const name = String(label || '').replace(/\s+/g, ' ').trim();
+  const name = fold(label).replace(/\s+/g, ' ').trim();
   for (const [re, key] of ROW_PATTERNS) {
     if (!re.test(name)) continue;
     if (key === 'energy') {
@@ -213,25 +229,32 @@ export function parseLabelText(rawText) {
     .filter(Boolean);
   const nutrition = {};
   let pending = null;
+  const absorb = (parsed) => {
+    for (const [k, v] of Object.entries(parsed)) if (nutrition[k] == null) nutrition[k] = v;
+  };
   for (const line of lines) {
+    const startsWithNumber = /^\d/.test(line);
     if (pending) {
-      const parsed = nutrientFromRow(pending, line);
-      if (parsed) {
-        for (const [k, v] of Object.entries(parsed)) if (nutrition[k] == null) nutrition[k] = v;
+      // A two-column label prints the label on one line and the value on the
+      // next. Anything that does not start with a number means the pairing
+      // broke (OCR noise); drop it rather than carrying it down the page.
+      if (startsWithNumber) {
+        const parsed = nutrientFromRow(pending, line);
+        if (parsed) absorb(parsed);
         pending = null;
         continue;
       }
+      pending = null;
     }
-    const m = line.match(/^([A-Za-zÅÄÖåäö–\-.\s]{3,40}?)\s*[:.]?\s*((?:\d[\d.,\s]*\s*(?:kcal|kJ|g|mg)\b.*))$/i);
+    // Same line: "Fett 4,3 g", "Energi 390 kJ / 90 kcal", and the OCR
+    // spellings of those units ("390 kI / 90 keal").
+    const m = line.match(/^([A-Za-zÅÄÖåäö–\-.\s]{3,40}?)\s*[:.]?\s*(\d[\d.,\s]*\s*[A-Za-z]{1,5}\b.*)$/);
     if (m) {
       const parsed = nutrientFromRow(m[1], m[2]);
-      if (parsed) {
-        for (const [k, v] of Object.entries(parsed)) if (nutrition[k] == null) nutrition[k] = v;
-        continue;
-      }
+      if (parsed) { absorb(parsed); continue; }
     }
-    if (ROW_PATTERNS.some(([re]) => re.test(line))) pending = line;
+    if (ROW_PATTERNS.some(([re]) => re.test(fold(line)))) pending = line;
   }
-  const nameLine = lines.find(l => /^[A-Za-zÅÄÖåäö]/.test(l) && !ROW_PATTERNS.some(([re]) => re.test(l)) && l.length <= 60);
+  const nameLine = lines.find(l => /^[A-Za-zÅÄÖåäö]/.test(l) && !ROW_PATTERNS.some(([re]) => re.test(fold(l))) && l.length <= 60);
   return { nutrition, name: nameLine || null };
 }
