@@ -17,10 +17,7 @@
  */
 import { Router } from 'express';
 import multer from 'multer';
-import { spawn } from 'child_process';
-import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
+
 import { logger } from '../logger.js';
 import { requireAuth } from '../middleware/auth.js';
 import { makeRateLimiter } from '../middleware/rate-limit.js';
@@ -30,6 +27,7 @@ import {
   parseProduct, parseSearch, firstSearchGtin, parseLabelText,
 } from '../lib/matsiktet.js';
 import { priceFor } from '../lib/store-price.js';
+import { readLabel } from '../lib/label-ocr.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -182,97 +180,28 @@ const labelUpload = multer({
   },
 });
 
-/** Run a binary and resolve its stdout; rejects with a status-tagged error. */
-function run(cmd, args, { stdin = null } = {}) {
-  return new Promise((resolve, reject) => {
-    let child;
-    try {
-      child = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-    } catch (err) {
-      return reject(Object.assign(new Error(`${cmd} is not installed on this server`), { status: 503 }));
-    }
-    const out = [];
-    let err = '';
-    child.stdout.on('data', d => out.push(d));
-    child.stderr.on('data', d => { err += d.toString(); });
-    child.on('error', (e) => {
-      const missing = e?.code === 'ENOENT';
-      reject(Object.assign(
-        new Error(missing ? `${cmd} is not installed on this server` : `${cmd} failed`),
-        { status: missing ? 503 : 500 },
-      ));
-    });
-    child.on('close', (code) => {
-      if (code === 0) return resolve(Buffer.concat(out).toString('utf8'));
-      reject(Object.assign(new Error(`${cmd} failed (${String(err).slice(0, 120)})`), { status: 500 }));
-    });
-    if (stdin) child.stdin.end(stdin);
-    else child.stdin.end();
-  });
-}
-
-/**
- * A phone photo is not a scan: it is tilted, unevenly lit and low contrast,
- * and tesseract on the raw file turns "g" into "9" often enough to multiply a
- * value by ten (measured 2026-11-18: "Protein 209"). Normalise first —
- * grayscale, 2x, unsharp, deskew — and keep the raw file as the fallback when
- * ImageMagick is missing.
- */
-async function preprocess(buffer) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'nt-ocr-'));
-  const src = path.join(dir, 'in');
-  const out = path.join(dir, 'out.png');
-  await fs.writeFile(src, buffer);
-  try {
-    await run('magick', [src, '-colorspace', 'Gray', '-resize', '200%',
-      '-unsharp', '0x1', '-deskew', '40%', out]);
-    return { dir, file: out, preprocessed: true };
-  } catch {
-    return { dir, file: src, preprocessed: false };
-  }
-}
-
-async function ocrFile(file, psm = '6') {
-  return run('tesseract', [file, 'stdout', '-l', 'swe', '--psm', psm]);
-}
-
 router.post('/label', labelUpload.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'photo required' });
-  let work = null;
   try {
-    work = await preprocess(req.file.buffer);
-    // psm 6 assumes a uniform block; a crumpled pack often needs psm 4
-    // (variable sizes), so a read with no rows gets one more try.
-    let text = await ocrFile(work.file, '6');
-    let parsed = parseLabelText(text);
-    if (Object.keys(parsed.nutrition).length === 0) {
-      const second = await ocrFile(work.file, '4');
-      const parsed2 = parseLabelText(second);
-      if (Object.keys(parsed2.nutrition).length > Object.keys(parsed.nutrition).length) {
-        text = second;
-        parsed = parsed2;
-      }
-    }
-    if (Object.keys(parsed.nutrition).length === 0) {
+    const r = await readLabel(req.file.buffer);
+    if (!r.found) {
       return res.status(422).json({
         found: false,
         reason: 'no nutrition rows read',
-        preprocessed: work.preprocessed,
-        text: text.slice(0, 1200),
+        preprocessed: r.preprocessed,
+        text: String(r.text || '').slice(0, 1200),
       });
     }
     res.json({
       found: true,
       source: 'label',
-      name: parsed.name || 'Label scan',
-      nutrition: parsed.nutrition,
-      preprocessed: work.preprocessed,
+      name: r.name || 'Label scan',
+      nutrition: r.nutrition,
+      preprocessed: r.preprocessed,
     });
   } catch (err) {
     logger.warn({ err: err?.message }, 'label OCR failed');
     res.status(err?.status || 500).json({ found: false, error: err?.message || 'OCR failed' });
-  } finally {
-    if (work?.dir) fs.rm(work.dir, { recursive: true, force: true }).catch(() => {});
   }
 });
 
