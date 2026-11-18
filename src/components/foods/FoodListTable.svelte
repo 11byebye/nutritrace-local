@@ -116,7 +116,7 @@
   ];
 
   function matches(food, key) {
-    if (key === 'food') return true;
+    if (key === 'food') return !isAlcohol(food) && !isBeverage(food);
     if (key === 'alcohol') return isAlcohol(food);
     if (key === 'beverage') return isBeverage(food);
     return tagsOf(food).includes(key);
@@ -137,6 +137,7 @@
     { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'price_100', label: 'foods.list.price_100', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
+    { key: 'added', label: 'foods.list.added', align: 'right' },
   ];
 
   function sortBy(key) {
@@ -207,6 +208,7 @@
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
     if (key === 'protein_sek') return proteinSek(food) ?? -1;
+    if (key === 'added') return String(food.created_at || '');
     return per100(food, key) ?? -1;
   }
 
@@ -308,6 +310,7 @@
             <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money(price100(food))}</td>
             <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
+            <td class="col-added right">{String(food.created_at || '').slice(0, 10)}</td>
           </tr>
         {/each}
       </tbody>
@@ -432,6 +435,7 @@
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
   .col-package_g { color: var(--text-2); white-space: nowrap; }
+  .col-added { color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .listview-note { font-size: 11px; color: var(--text-3); }
   .fav { font-size: 13px; color: var(--accent); }
 </style>
