@@ -42,9 +42,10 @@
   // Tag chips. A food can belong to several of these (chorizo is meat and a
   // snack; a beer is alcohol and a drink), so they are derived tags, not the
   // stored single category. Unknown on every tag = never hidden by them.
+  // "Sprite" contains "sprit", so every word here needs its boundaries.
   const TAG_DEFS = [
     { key: 'alcohol', label: 'foods.list.tag_alcohol', icon: 'wine_bar',
-      re: /vin\b|vitt vin|rött vin|mousserande|prosecco|champagne|cava|\böl\b|\bipa\b|lager\b|\bcider\b|sprit|whisk|gin\b|rom\b|vodka|sangria|glögg|\bvin/i },
+      re: /\bvin\b|\böl\b|\bipa\b|\blager\b|\bcider\b|\bsprit\b|whisk(e)?y|\bgin\b|\brom\b|\bvodka\b|sangria|glögg|mousserande|prosecco|champagne|cava/i },
     { key: 'snacks', label: 'foods.list.tag_snacks', icon: 'cookie',
       re: /chips|ostbåg|popcorn|jordnöt|cashew|mandel|nöt|godis|choklad|kaka\b|kakor|kex|glass|snack|salami|chark|saltad/i },
     { key: 'meat', label: 'foods.list.tag_meat', icon: 'kebab_dining',
@@ -54,35 +55,47 @@
   ];
 
   // Names that satisfy a tag by their stored category alone.
+  // Alcohol is never inferred from the drink category — a zero cola is a
+  // drink, not a beer.
   const TAG_CATEGORY = {
-    alcohol: /dryck/i,
     snacks: /sötsaker|socker/i,
     meat: /kött|fågel/i,
     veg: /grönsak|rotfrukt/i,
   };
 
+  /** The API maps `category` to a one-element `categories` array; the scalar
+   *  is gone by the time a food reaches this table. */
+  function catText(food) {
+    const list = food?.categories;
+    if (Array.isArray(list) && list.length) return list.join(' ');
+    return String(food?.category || '');
+  }
+
   let activeTags = Object.fromEntries(TAG_DEFS.map((t) => [t.key, true]));
 
   function tagsOf(food) {
     const text = `${food.name || ''} ${food.brand || ''}`;
-    const cat = String(food.category || '');
+    const cat = catText(food);
     const out = [];
     for (const def of TAG_DEFS) {
-      if (def.re.test(text) || (TAG_CATEGORY[def.key] && TAG_CATEGORY[def.key].test(cat))) {
-        out.push(def.key);
-      }
+      const byName = def.re.test(text);
+      const byCat = TAG_CATEGORY[def.key] ? TAG_CATEGORY[def.key].test(cat) : false;
+      const byNutrient = def.key === 'alcohol' && Number(food?.nutrition?.alcohol) > 0;
+      if (byName || byCat || byNutrient) out.push(def.key);
     }
     return out;
   }
 
   const DRINK_RE = /dryck|drink|beverage/i;
+  const DRINK_NAME_RE = /\b(läsk|saft|juice|vatten|dryck|cola|pepsi|sprite|fanta|kaffe|te|öl|vin|cider|must|nektar|smoothie|kombucha|mjölk|havredryck|sojadryck)\b/i;
 
-  /** Drinks are the "Dryck" category or anything measured in ml. Category
-   *  alone would miss an OFF import with no category; ml alone would miss a
-   *  drink logged in grams. */
+  /** A drink is the Dryck category, an ml unit, or a name that says so.
+   *  All three are needed: the category misses an OFF import that has none,
+   *  ml misses a drink saved in grams, and the name catches both. */
   function isDrink(food) {
-    if (DRINK_RE.test(String(food?.category || ''))) return true;
-    return String(food?.unit || '').toLowerCase() === 'ml';
+    if (DRINK_RE.test(catText(food))) return true;
+    if (String(food?.unit || '').toLowerCase() === 'ml') return true;
+    return DRINK_NAME_RE.test(String(food?.name || ''));
   }
 
 
