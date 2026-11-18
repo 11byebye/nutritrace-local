@@ -902,7 +902,9 @@
       "tag_meat": "Meat",
       "tag_veg": "Veg",
       "category": "Category",
-      "show_beverage": "Beverage"
+      "show_beverage": "Beverage",
+      "bought": "Bought",
+      "bought_hint": "Only foods from a receipt or made in the app — not store lookups or reference copies"
     }
   },
   "trace": {

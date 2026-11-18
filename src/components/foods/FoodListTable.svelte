@@ -96,6 +96,18 @@
     return DRINK_NAME_RE.test(String(food?.name || ''));
   }
 
+  // Bought is orthogonal to the category chips: it narrows whatever category
+  // is selected, so "Meat + Bought" is one click each. A row is bought when
+  // its provenance says it came from a receipt or was made in the app; a
+  // store lookup or a reference copy is a candidate, not a purchase.
+  let boughtOnly = false;
+  const PROVENANCE = new Set(['receipt', 'manual', 'web', '']);
+
+  function isBought(food) {
+    const app = String(food?.source_app || '').toLowerCase();
+    return !app || PROVENANCE.has(app);
+  }
+
   const FILTERS = [
     { key: 'food', label: 'foods.list.show_food', icon: 'restaurant' },
     { key: 'beverage', label: 'foods.list.show_beverage', icon: 'local_drink' },
@@ -202,7 +214,7 @@
   // a category *regardless of kind*: Alcohol lists every drink-tagged item
   // even with Drink off, and Meat/Veg/Snacks list their items even with Food
   // off. A row with no tag still follows the kind chip only.
-  $: filtered = foods.filter((f) => matches(f, filter));
+  $: filtered = foods.filter((f) => matches(f, filter) && (!boughtOnly || isBought(f)));
 
   $: sorted = (() => {
     const rows = [...filtered];
@@ -234,6 +246,13 @@
         {$_(item.label)}
       </button>
     {/each}
+    <button type="button" class="chip" class:on={boughtOnly}
+      aria-pressed={boughtOnly}
+      on:click={() => (boughtOnly = !boughtOnly)}
+      title={$_('foods.list.bought_hint')}>
+      <span class="material-symbols-rounded chip-icon">shopping_bag</span>
+      {$_('foods.list.bought')}
+    </button>
     <span class="listview-note">{$_('foods.list.per_100_note')}</span>
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
