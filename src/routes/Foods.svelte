@@ -874,14 +874,11 @@
     const src = searchSource;
     searchTimeout = setTimeout(async () => {
       if (activeTab !== 0 && src !== 'cooktrace' && src !== 'all') return;
-      if (_sourcesOffline) {
-        // Offline: your own foods still answer, the rest are left empty and
-        // the chips below say why.
-        apiResults = []; apiTotalHits = 0; apiHasMore = false;
-        offResults = []; matsiktetResults = []; usdaResults = []; mealieResults = []; cooktraceResults = []; ctPantryResults = [];
-        loading = false; mealieLoading = false; cooktraceLoading = false; ctPantryLoading = false;
-        return;
-      }
+      // Never short-circuit on navigator.onLine: a tailnet-only phone reports
+      // offline while the app's own proxy is still reachable, and a flag set
+      // by one failed request would otherwise block every later search. Each
+      // source tries; its own failure flips the offline flag and the chips
+      // below say why.
       if (src === 'matsiktet') {
         try {
           loading = true;
@@ -1673,13 +1670,13 @@
       //    printed label, and it carries the own-brands (ICA Basic, Garant,
       //    Felix) that OFF often lacks. A hit opens the editor prefilled;
       //    a miss falls through to OFF, so nothing that works today breaks.
-      if (!_sourcesOffline) {
-        const se = await _lookupMatsiktet(code);
-        if (se?.found) {
-          scannerOpen = false;
-          openEditor(_foodFromMatsiktet(code, se), 'foodList');
-          return;
-        }
+      //    Tried even when navigator.onLine says offline: the request goes
+      //    through the app's own proxy, which a tailnet-only phone can reach.
+      const se = await _lookupMatsiktet(code);
+      if (se?.found) {
+        scannerOpen = false;
+        openEditor(_foodFromMatsiktet(code, se), 'foodList');
+        return;
       }
 
       // 3. Not in the library or the Swedish catalogue — fetch from Open
@@ -1690,15 +1687,6 @@
       //    optionally contribute it back to OFF via the editor's
       //    Contribute button. Previously this just showed a dead-end
       //    "Barcode not found" toast.
-      if (_sourcesOffline) {
-        // Only the user's own foods could be checked, so don't let this read
-        // as "this barcode doesn't exist".
-        scannerOpen = false;
-        const { showInfo: si } = await import('../stores/toast.js');
-        si($_('foods.offline.barcode'));
-        openEditor({ barcode: code }, 'foodList');
-        return;
-      }
       _scanLookupCode   = code;
       _scanLookupActive = true;
       _armScanIndicator();
@@ -1736,7 +1724,9 @@
         }
       } else {
         const { showInfo: si } = await import('../stores/toast.js');
-        si('Not in Open Food Facts — enter the food and contribute it back if you want');
+        si(_sourcesOffline
+          ? $_('foods.offline.barcode')
+          : 'Not in Open Food Facts — enter the food and contribute it back if you want');
         openEditor({ barcode: code }, 'foodList');
       }
     } catch(e) {
@@ -2404,6 +2394,9 @@
             {/if}
             {#if _cooktraceEnabled && activeTab === 0}
               <span class="asc-chip"><span class="asc-dot asc-cooktrace"></span>CookTrace · {#if _sourcesOffline}{$_('foods.offline.source')}{:else}{ctPantryResults.length}{#if _allCtPantryTotal > ctPantryResults.length} of {_allCtPantryTotal.toLocaleString()}{/if}{/if}</span>
+            {/if}
+            {#if activeTab === 0}
+              <span class="asc-chip"><span class="asc-dot asc-matsiktet"></span>Matsiktet · {matsiktetResults.length}</span>
             {/if}
             {#if $offEnabled}
               <span class="asc-chip"><span class="asc-dot asc-off"></span>OFF · {#if _sourcesOffline}{$_('foods.offline.source')}{:else}{offResults.length}{#if _allOffTotal > offResults.length} of {_allOffTotal.toLocaleString()}{/if}{/if}</span>
@@ -3457,6 +3450,7 @@
   .source-badge-usda   { background: rgba(59, 130, 246, 0.14); color: rgb(59, 130, 246); }
   .source-badge-off    { background: rgba(148, 163, 184, 0.18); color: rgb(148, 163, 184); }
   .source-badge-matsiktet { background: rgba(250, 204, 21, 0.16); color: rgb(161, 98, 7); }
+  .asc-dot.asc-matsiktet { background: rgb(250, 204, 21); }
   /* Both CookTrace surfaces (recipes on the Recipes tab, pantry rows on
      the Foods tab) share one badge colour: same upstream app, and the
      tab already disambiguates which endpoint produced the row. */
