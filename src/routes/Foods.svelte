@@ -860,14 +860,11 @@
     const src = searchSource;
     searchTimeout = setTimeout(async () => {
       if (activeTab !== 0 && src !== 'cooktrace' && src !== 'all') return;
-      if (_sourcesOffline) {
-        // Offline: your own foods still answer, the rest are left empty and
-        // the chips below say why.
-        apiResults = []; apiTotalHits = 0; apiHasMore = false;
-        offResults = []; usdaResults = []; mealieResults = []; cooktraceResults = []; ctPantryResults = [];
-        loading = false; mealieLoading = false; cooktraceLoading = false; ctPantryLoading = false;
-        return;
-      }
+      // Never short-circuit on navigator.onLine: a tailnet-only phone reports
+      // offline while the app's own proxy is still reachable, and a flag set
+      // by one failed request would otherwise block every later search. Each
+      // source tries; its own failure flips the offline flag and the chips
+      // below say why.
       if (src === 'off') {
         try {
           loading = true;
@@ -1582,15 +1579,9 @@
       //    the user can enter the food manually and optionally contribute
       //    it back to OFF via the editor's Contribute button. Previously
       //    this just showed a dead-end "Barcode not found" toast.
-      if (_sourcesOffline) {
-        // Only the user's own foods could be checked, so don't let this read
-        // as "this barcode doesn't exist".
-        scannerOpen = false;
-        const { showInfo: si } = await import('../stores/toast.js');
-        si($_('foods.offline.barcode'));
-        openEditor({ barcode: code }, 'foodList');
-        return;
-      }
+      // Try the lookup even when navigator.onLine says offline: the request
+      // goes through the app's own proxy, which a tailnet-only phone can
+      // reach. A real failure falls through to the offline toast below.
       _scanLookupCode   = code;
       _scanLookupActive = true;
       _armScanIndicator();
@@ -1628,7 +1619,9 @@
         }
       } else {
         const { showInfo: si } = await import('../stores/toast.js');
-        si('Not in Open Food Facts — enter the food and contribute it back if you want');
+        si(_sourcesOffline
+          ? $_('foods.offline.barcode')
+          : 'Not in Open Food Facts — enter the food and contribute it back if you want');
         openEditor({ barcode: code }, 'foodList');
       }
     } catch(e) {
