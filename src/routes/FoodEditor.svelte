@@ -223,12 +223,32 @@
     const looksEmpty = !food.name?.trim() && !food.brand?.trim() &&
       (food.nutrition == null || Object.keys(food.nutrition || {}).length === 0) &&
       !NUTRIMENTS.some(n => food[n.id] != null && food[n.id] !== '');
-    if (looksEmpty) {
-      // Re-use the existing smart-fill that only writes empty fields.
-      await downloadFromOFF();
-    } else {
-      showSuccess($_('food_editor.toast.barcode_set'));
+    if (!looksEmpty) { showSuccess($_('food_editor.toast.barcode_set')); return; }
+
+    // Same order as the Foods scanner: the Swedish catalogue first (it has
+    // the own-brands and the printed pack), OFF second. Asking OFF alone here
+    // is what made this path lose the package size the scanner fills in.
+    const { lookupGtin, foodFromGtin } = await import('../lib/se-lookup.js');
+    const se = await lookupGtin(code);
+    if (se?.found) {
+      const hit = foodFromGtin(code, se);
+      const flat = { ...(hit.nutrition || {}) };
+      food = {
+        ...food,
+        name: hit.name || food.name,
+        brand: hit.brand || food.brand,
+        portion: food.portion || hit.portion,
+        unit: food.unit || hit.unit,
+        notes: food.notes || hit.notes,
+        ...flat,
+        package_weight_g: hit.package_weight_g ? _moneyField(hit.package_weight_g) : food.package_weight_g,
+        price: hit.price ? _moneyField(hit.price) : food.price,
+      };
+      showSuccess('Filled from the Swedish catalogue');
+      return;
     }
+    // Re-use the existing smart-fill that only writes empty fields.
+    await downloadFromOFF();
   }
 
 

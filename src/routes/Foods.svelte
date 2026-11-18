@@ -20,6 +20,7 @@
   import { staleIngredientNames } from '../lib/stale-ingredients.js';
   import { editorState, clearFoodEditorState } from '../stores/editorState.js';
   import { DB, localDateStr } from '../lib/db.js';
+  import { lookupGtin, lookupPrice, foodFromGtin, packGrams } from '../lib/se-lookup.js';
   import { loadEntry } from '../stores/diary.js';
   import { API, USDA, NtApi } from '../lib/api.js';
   import { Nutrition } from '../lib/nutrition.js';
@@ -1143,8 +1144,8 @@
       // A search hit carries name + brand only (the numbers live on the
       // product page). One cached GTIN lookup fills them in on tap.
       try {
-        const p = await _lookupMatsiktet(food.barcode);
-        if (p?.found) food = { ...food, ..._foodFromMatsiktet(food.barcode, p) };
+        const p = await lookupGtin(food.barcode);
+        if (p?.found) food = { ...food, ...foodFromGtin(food.barcode, p), _seHydrated: true };
       } catch { /* fall through with the un-hydrated hit */ }
     }
     if (sourceHint === 'off' && food && food.barcode && !food._offHydrated) {
@@ -1581,60 +1582,6 @@
   }
 
   /**
-   * A Matsiktet hit shaped like a food the editor can prefill. The catalogue
-   * prints per 100 g, and a volume pack has no mass, so the volume rides in
-   * the notes rather than the package field.
-   */
-  function _foodFromMatsiktet(code, p) {
-    // A price lands in the editor's own fields: amount = what the pack costs,
-    // pack = the size it costs for. Willys is an exact barcode match; an ICA
-    // row is a name match and says so, with the store it was priced at.
-    const price = p.price && Number.isFinite(Number(p.price.amount)) ? p.price : null;
-    return {
-      name: p.name,
-      brand: p.brand || undefined,
-      barcode: code,
-      nutrition: p.nutrition || {},
-      portion: 100,
-      unit: 'g',
-      package_weight_g: p.package_g ?? undefined,
-      price: price ? Number(price.amount) : undefined,
-      notes: [
-        p.volume_note,
-        price ? `${price.exact ? 'pris' : 'pris ca'} ${price.store}` : null,
-        'matsiktet.se',
-      ].filter(Boolean).join(' · '),
-      _seHydrated: true,
-    };
-  }
-
-  /** The Swedish catalogue first: own-brands OFF is thin on, keyed by GTIN. */
-  async function _lookupMatsiktet(code) {
-    try { return await NtApi.get('/api/lookup/gtin/' + encodeURIComponent(code)); }
-    catch { return null; }
-  }
-
-  /** "200g", "0,7kg", "1,5 l" -> grams (null for a volume). */
-  function _packGramsClient(raw) {
-    const s = String(raw || '').toLowerCase().replace(',', '.');
-    const kg = s.match(/(\d+(?:\.\d+)?)\s*kg\b/);
-    if (kg) return Math.round(Number(kg[1]) * 1000);
-    const g = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
-    if (g) return Number(g[1]);
-    return null;
-  }
-
-  /** One shop price for a name and a barcode, or null. */
-  async function _lookupPrice(code, name, brand, pack) {
-    try {
-      const params = new URLSearchParams({ code: code || '', name: name || '', brand: brand || '' });
-      if (pack) params.set('pack', String(pack));
-      const r = await NtApi.get('/api/lookup/price?' + params.toString());
-      return r?.price?.amount ? r.price : null;
-    } catch { return null; }
-  }
-
-  /**
    * Attach a shop price to a food that came from another source (OFF has no
    * price and often no pack size). The server prices exact at Willys by
    * barcode and approximately at ICA by name, and the shop's pack fills the
@@ -1642,11 +1589,11 @@
    */
   async function _attachPrice(food, code) {
     if (!food || food.price) return food;
-    const price = await _lookupPrice(code, food.name, food.brand, food.package_weight_g);
+    const price = await lookupPrice({ code, name: food.name, brand: food.brand, pack: food.package_weight_g });
     if (!price) return food;
     food.price = Number(price.amount);
     if (!food.package_weight_g) {
-      const g = _packGramsClient(price.pack);
+      const g = packGrams(price.pack);
       if (g) food.package_weight_g = g;
     }
     return food;
@@ -1661,13 +1608,18 @@
     const needsPack = !food.package_weight_g;
     const needsPrice = food.price == null || food.price === '';
     if (!needsPack && !needsPrice) return food;
-    const se = await _lookupMatsiktet(code);
+    const se = await lookupGtin(code);
     const price = needsPrice
-      ? await _lookupPrice(code, se?.found ? se.name : food.name, se?.found ? se.brand : food.brand, food.package_weight_g)
+      ? await lookupPrice({
+          code,
+          name: se?.found ? se.name : food.name,
+          brand: se?.found ? se.brand : food.brand,
+          pack: food.package_weight_g,
+        })
       : null;
     const patch = {};
     if (needsPack) {
-      const g = se?.found ? se.package_g : _packGramsClient(price?.pack);
+      const g = se?.found ? (se.package_g ?? packGrams(price?.pack)) : packGrams(price?.pack);
       if (g) patch.package_weight_g = g;
     }
     if (needsPrice && price?.amount) patch.price = Number(price.amount);
@@ -1751,10 +1703,10 @@
       //    a miss falls through to OFF, so nothing that works today breaks.
       //    Tried even when navigator.onLine says offline: the request goes
       //    through the app's own proxy, which a tailnet-only phone can reach.
-      const se = await _lookupMatsiktet(code);
+      const se = await lookupGtin(code);
       if (se?.found) {
         scannerOpen = false;
-        openEditor(_foodFromMatsiktet(code, se), 'foodList');
+        openEditor({ ...foodFromGtin(code, se), _seHydrated: true }, 'foodList');
         return;
       }
 
