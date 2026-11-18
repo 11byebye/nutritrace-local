@@ -112,6 +112,7 @@
   // parallel and shows results grouped by source with per-row source badges.
   $: _perSourceOptions = [
     { value: 'local',  label: $_('foods.sources.local')  },
+    ...(activeTab === 0 ? [{ value: 'matsiktet', label: 'Matsiktet' }] : []),
     ...(activeTab === 0 && $offEnabled    ? [{ value: 'off',    label: 'OFF' }] : []),
     ...(activeTab === 0 && $usdaEnabled   ? [{ value: 'usda',   label: 'USDA' }] : []),
     ...(activeTab === 0 && _mealieEnabled ? [{ value: 'mealie', label: 'Mealie' }] : []),
@@ -236,6 +237,7 @@
   // pinned set was correctly updated (verified via adb logcat).
   $: activeChips = {
     local:  pinnedSources.size > 0 ? pinnedSources.has('local')  : searchSource === 'local',
+    matsiktet: pinnedSources.size > 0 ? pinnedSources.has('matsiktet') : searchSource === 'matsiktet',
     off:    pinnedSources.size > 0 ? pinnedSources.has('off')    : searchSource === 'off',
     usda:   pinnedSources.size > 0 ? pinnedSources.has('usda')   : searchSource === 'usda',
     mealie: pinnedSources.size > 0 ? pinnedSources.has('mealie') : searchSource === 'mealie',
@@ -260,6 +262,15 @@
   // Small helper for _allModeItems below.
   function _isSourceActive(name) {
     return pinnedSources.size === 0 || pinnedSources.has(name);
+  }
+
+  /** Search hits carry name + brand; the numbers load on tap (one cached
+   *  GTIN lookup), so the row says so instead of showing 0 kcal. */
+  function _matsiktetItems(rows) {
+    return (rows || []).map(r => ({
+      id: r.gtin, barcode: r.gtin, name: r.name, brand: r.brand || undefined,
+      nutrition: {}, unit: 'g', portion: 100, noValues: true,
+    }));
   }
 
   function _bucketOff(c) {
@@ -391,6 +402,7 @@
   // alongside mealieResults, local matches, and shared matches. #96.
   let apiResults = [];
   let offResults = [];
+  let matsiktetResults = [];
   let usdaResults = [];
   let mealieResults = [];
   // Open Food Facts, USDA, Mealie and CookTrace all need the network. When
@@ -639,6 +651,7 @@
     ...(_isSourceActive('mealie') ? (mealieResults || []).map(item => ({ source: 'mealie', item })) : []),
     ...(_isSourceActive('cooktrace') ? (cooktraceResults || []).map(item => ({ source: 'cooktrace', item })) : []),
     ...(_isSourceActive('ctpantry') ? (ctPantryResults || []).map(item => ({ source: 'ctpantry', item })) : []),
+    ...(_isSourceActive('matsiktet') ? (matsiktetResults || []).map(item => ({ source: 'matsiktet', item })) : []),
     ...(_isSourceActive('off')    ? (offResults    || []).filter(f => !offTiersFiltered  || offTiersActive.has(_bucketOff(f.completeness))).map(item => ({ source: 'off',    item })) : []),
     ...(_isSourceActive('usda')   ? (usdaResults   || []).filter(f => !usdaTiersFiltered || usdaTiersActive.has(f.dataType || 'unknown')).map(item => ({ source: 'usda',   item })) : []),
   ];
@@ -845,6 +858,7 @@
     clearTimeout(searchTimeout);
     apiResults = [];
     offResults = [];
+    matsiktetResults = [];
     usdaResults = [];
     mealieResults = [];
     cooktraceResults = [];
@@ -864,11 +878,21 @@
         // Offline: your own foods still answer, the rest are left empty and
         // the chips below say why.
         apiResults = []; apiTotalHits = 0; apiHasMore = false;
-        offResults = []; usdaResults = []; mealieResults = []; cooktraceResults = []; ctPantryResults = [];
+        offResults = []; matsiktetResults = []; usdaResults = []; mealieResults = []; cooktraceResults = []; ctPantryResults = [];
         loading = false; mealieLoading = false; cooktraceLoading = false; ctPantryLoading = false;
         return;
       }
-      if (src === 'off') {
+      if (src === 'matsiktet') {
+        try {
+          loading = true;
+          const r = await NtApi.get('/api/lookup/search?q=' + encodeURIComponent(search));
+          apiResults = _matsiktetItems(r?.items);
+          apiTotalHits = apiResults.length;
+          apiHasMore = false;
+          apiPage = 1;
+        } catch { apiResults = []; apiTotalHits = 0; apiHasMore = false; }
+        finally { loading = false; }
+      } else if (src === 'off') {
         try {
           loading = true;
           const r = await API.searchByNameWithMeta(search, 1);
@@ -930,6 +954,11 @@
         mealieLoading = _mealieEnabled && activeTab === 0;
         cooktraceLoading = _cooktraceEnabled && activeTab === 2;
         ctPantryLoading = _cooktraceEnabled && activeTab === 0;
+        if (activeTab === 0) {
+          jobs.push(NtApi.get('/api/lookup/search?q=' + encodeURIComponent(search))
+            .then(r => { matsiktetResults = _matsiktetItems(r?.items); })
+            .catch(() => { matsiktetResults = []; }));
+        }
         if ($offEnabled && activeTab === 0) {
           jobs.push(API.searchByNameWithMeta(search, 1, ALL_MODE_PAGE_SIZE)
             .then(r => {
@@ -1113,6 +1142,14 @@
     // for freshly-picked OFF search hits (sourceHint === 'off'); locally
     // stored foods, barcode-scanned foods, and shared / USDA / Mealie
     // items all have their own data paths and don't need OFF hydration.
+    if (sourceHint === 'matsiktet' && food?.barcode && !food._seHydrated) {
+      // A search hit carries name + brand only (the numbers live on the
+      // product page). One cached GTIN lookup fills them in on tap.
+      try {
+        const p = await _lookupMatsiktet(food.barcode);
+        if (p?.found) food = { ...food, ..._foodFromMatsiktet(food.barcode, p) };
+      } catch { /* fall through with the un-hydrated hit */ }
+    }
     if (sourceHint === 'off' && food && food.barcode && !food._offHydrated) {
       try {
         // fetchProductByCode lives on API, not NtApi. NtApi is a Proxy
@@ -1546,6 +1583,63 @@
     _scanIndicatorVisible  = false;
   }
 
+  /**
+   * A Matsiktet hit shaped like a food the editor can prefill. The catalogue
+   * prints per 100 g, and a volume pack has no mass, so the volume rides in
+   * the notes rather than the package field.
+   */
+  function _foodFromMatsiktet(code, p) {
+    return {
+      name: p.name,
+      brand: p.brand || undefined,
+      barcode: code,
+      nutrition: p.nutrition || {},
+      portion: 100,
+      unit: 'g',
+      package_weight_g: p.package_g ?? undefined,
+      notes: [p.volume_note, 'matsiktet.se'].filter(Boolean).join(' · '),
+      _seHydrated: true,
+    };
+  }
+
+  /** The Swedish catalogue first: own-brands OFF is thin on, keyed by GTIN. */
+  async function _lookupMatsiktet(code) {
+    try { return await NtApi.get('/api/lookup/gtin/' + encodeURIComponent(code)); }
+    catch { return null; }
+  }
+
+  async function handleLabelPhoto({ detail }) {
+    const file = detail?.file;
+    if (!file) return;
+    scannerOpen = false;
+    try {
+      const { apiUrl, getAuthToken } = await import('../lib/platform.js');
+      const body = new FormData();
+      body.append('photo', file);
+      const res = await fetch(apiUrl('/api/lookup/label'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        body,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.found) {
+        showError(data?.reason === 'no nutrition rows read'
+          ? 'No nutrition rows readable in that photo — try a closer, straighter shot'
+          : (data?.error || 'Label read failed'));
+        return;
+      }
+      openEditor({
+        name: data.name || 'Label scan',
+        nutrition: data.nutrition || {},
+        portion: 100,
+        unit: 'g',
+        notes: 'label photo · tesseract (swe)',
+      }, 'foodList');
+    } catch {
+      showError('Label read failed — the server could not be reached');
+    }
+  }
+
   async function handleScan({ detail }) {
     const rawCode = detail.code;
     if (!rawCode) return;
@@ -1575,13 +1669,27 @@
         return;
       }
 
-      // 2. Not in library — fetch from Open Food Facts. If found, open
-      //    FoodEditor with OFF data prefilled (picture, full nutrition,
-      //    brand) so the user can verify before saving. If NOT found in
-      //    OFF, still open the editor with just the barcode prefilled so
-      //    the user can enter the food manually and optionally contribute
-      //    it back to OFF via the editor's Contribute button. Previously
-      //    this just showed a dead-end "Barcode not found" toast.
+      // 2. The Swedish catalogue next. Matsiktet answers by GTIN with the
+      //    printed label, and it carries the own-brands (ICA Basic, Garant,
+      //    Felix) that OFF often lacks. A hit opens the editor prefilled;
+      //    a miss falls through to OFF, so nothing that works today breaks.
+      if (!_sourcesOffline) {
+        const se = await _lookupMatsiktet(code);
+        if (se?.found) {
+          scannerOpen = false;
+          openEditor(_foodFromMatsiktet(code, se), 'foodList');
+          return;
+        }
+      }
+
+      // 3. Not in the library or the Swedish catalogue — fetch from Open
+      //    Food Facts. If found, open FoodEditor with OFF data prefilled
+      //    (picture, full nutrition, brand) so the user can verify before
+      //    saving. If NOT found in OFF, still open the editor with just the
+      //    barcode prefilled so the user can enter the food manually and
+      //    optionally contribute it back to OFF via the editor's
+      //    Contribute button. Previously this just showed a dead-end
+      //    "Barcode not found" toast.
       if (_sourcesOffline) {
         // Only the user's own foods could be checked, so don't let this read
         // as "this barcode doesn't exist".
@@ -2211,7 +2319,7 @@
                 {:else}
                   <div class="food-thumb-placeholder">
                     <span class="material-symbols-rounded">
-                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'off'}public{:else}{_tabIcon}{/if}
+                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'matsiktet'}storefront{:else if source === 'off'}public{:else}{_tabIcon}{/if}
                     </span>
                   </div>
                 {/if}
@@ -2237,7 +2345,7 @@
                     {#if item.brand}<span class="food-brand text-3 text-sm">{item.brand}</span>{/if}
                     {#if _foodEnergy}
                       <span class="food-kcal text-sm">
-                        {#if source === 'off' && _offNoValues(item)}{$_('foods.off_no_values_listed')}{:else}{_foodEnergy.value.toLocaleString()} {_foodEnergy.unit}{/if}
+                        {#if item.noValues}<em>Tap to load the numbers</em>{:else if source === 'off' && _offNoValues(item)}{$_('foods.off_no_values_listed')}{:else}{_foodEnergy.value.toLocaleString()} {_foodEnergy.unit}{/if}
                         <!-- OFF completeness dot -->
                         {#if source === 'off' && typeof item.completeness === 'number'}
                           <span class="off-quality-dot"
@@ -2269,6 +2377,7 @@
                   {:else if source === 'mealie'}{$_('foods.sources.mealie')}
                   {:else if source === 'cooktrace' || source === 'ctpantry'}CookTrace
                   {:else if source === 'usda'}USDA
+                  {:else if source === 'matsiktet'}Matsiktet
                   {:else}OFF{/if}
                 </span>
               </button>
@@ -2497,7 +2606,7 @@
                     <img class="food-thumb" src={food.imgUrl} alt="" loading="lazy" referrerpolicy="no-referrer" on:error={e => e.target.style.display='none'} />
                   {:else}
                     <div class="food-thumb-placeholder">
-                      <span class="material-symbols-rounded">{searchSource === 'usda' ? 'science' : 'public'}</span>
+                      <span class="material-symbols-rounded">{searchSource === 'matsiktet' ? 'storefront' : searchSource === 'usda' ? 'science' : 'public'}</span>
                     </div>
                   {/if}
                   <div class="food-info">
@@ -2518,7 +2627,7 @@
                     </span>
                     {#if food.brand}<span class="food-brand text-3 text-sm">{food.brand}</span>{/if}
                     <span class="food-kcal text-sm">
-                      {#if searchSource === 'off' && _offNoValues(food)}{$_('foods.off_no_values_listed')}{:else}{_foodEnergy.value.toLocaleString()} {_foodEnergy.unit}{/if}
+                      {#if food.noValues}<em>Tap to load the numbers</em>{:else if searchSource === 'off' && _offNoValues(food)}{$_('foods.off_no_values_listed')}{:else}{_foodEnergy.value.toLocaleString()} {_foodEnergy.unit}{/if}
                       {#if searchSource === 'off' && typeof food.completeness === 'number'}
                         <!-- OFF data-completeness dot. Green when the entry has most
                              nutriment fields filled in, yellow when partial, grey when
@@ -2926,7 +3035,7 @@
   {/if}
 </Sheet>
 
-<BarcodeScanner bind:open={scannerOpen} on:scan={handleScan} on:close={() => scannerOpen = false} />
+<BarcodeScanner bind:open={scannerOpen} on:scan={handleScan} on:labelphoto={handleLabelPhoto} on:close={() => scannerOpen = false} />
 
 <!-- Barcode-lookup loading overlay. Deferred reveal (see _armScanIndicator
      above) means fast lookups don't flash this UI; only lookups that run
@@ -3347,6 +3456,7 @@
   .source-badge-mealie { background: rgba(251, 146, 60, 0.14); color: rgb(234, 128, 42); }
   .source-badge-usda   { background: rgba(59, 130, 246, 0.14); color: rgb(59, 130, 246); }
   .source-badge-off    { background: rgba(148, 163, 184, 0.18); color: rgb(148, 163, 184); }
+  .source-badge-matsiktet { background: rgba(250, 204, 21, 0.16); color: rgb(161, 98, 7); }
   /* Both CookTrace surfaces (recipes on the Recipes tab, pantry rows on
      the Foods tab) share one badge colour: same upstream app, and the
      tab already disambiguates which endpoint produced the row. */

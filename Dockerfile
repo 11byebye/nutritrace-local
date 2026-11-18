@@ -25,8 +25,11 @@ RUN npm run build
 # (Raspberry Pi 4 / 5). npm picks the right @duckdb/node-bindings-linux-<arch>
 # automatically during install based on the build platform.
 FROM node:20-slim
+# tesseract with the Swedish model powers the phone's label-photo lookup
+# (POST /api/lookup/label). ~30 MB; the scanner still works without it.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 build-essential \
+      tesseract-ocr tesseract-ocr-swe \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY server/package*.json ./

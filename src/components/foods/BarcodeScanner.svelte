@@ -315,6 +315,18 @@
     dispatch('scan', { code });
   }
 
+  // Label photo: the pack has no readable barcode (or the barcode is already
+  // known to be missing from the catalogues). The file goes to the server,
+  // which runs tesseract with the Swedish model and answers a food draft.
+  function onLabelPhoto(e) {
+    const file = e?.currentTarget?.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    detected = true;
+    close();
+    dispatch('labelphoto', { file });
+  }
+
   async function startScanner() {
     detected = false;
     scanning = true;
@@ -525,6 +537,11 @@
         />
         <button class="btn btn-primary" on:click={doManualNative}>{$_('barcode_scanner.lookup')}</button>
       </div>
+      <label class="ns-label-photo">
+        <span class="material-symbols-rounded">photo_camera</span>
+        Photo of the label
+        <input type="file" accept="image/*" capture="environment" on:change={onLabelPhoto} />
+      </label>
     </div>
   </div>
 {/if}
@@ -608,6 +625,11 @@
         />
         <button class="btn btn-primary" on:click={doManual}>{$_('barcode_scanner.lookup')}</button>
       </div>
+      <label class="scanner-label-photo">
+        <span class="material-symbols-rounded">photo_camera</span>
+        Photo of the label
+        <input type="file" accept="image/*" capture="environment" on:change={onLabelPhoto} />
+      </label>
     </div>
   </div>
 {/if}
@@ -771,6 +793,26 @@
   }
   .scanner-manual .input { flex: 1; }
   .scanner-manual .btn { flex-shrink: 0; white-space: nowrap; }
+
+  /* Label photo: one tap opens the camera, the file goes to the server's
+     Swedish OCR. Full width under the manual row so it reads as the
+     second way in, not a third control in the same line. */
+  .scanner-label-photo, .ns-label-photo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .scanner-label-photo:hover, .ns-label-photo:hover { background: var(--surface-3); color: var(--text-1); }
+  .scanner-label-photo .material-symbols-rounded, .ns-label-photo .material-symbols-rounded { font-size: 18px; }
+  .scanner-label-photo input, .ns-label-photo input { display: none; }
 
   /* Native ML Kit scanner overlay (bundled, no Play Services) — camera
      renders BEHIND the WebView. We just draw chrome on top. */

@@ -13,6 +13,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import proxyRoutes  from './routes/proxy.js';
+import lookupRoutes from './routes/lookup.js';
 import authRoutes   from './routes/auth.js';
 import dataRoutes   from './routes/data.js';
 import foodsRoutes  from './routes/foods.js';
@@ -249,6 +250,7 @@ router.use('/api/mcp', mcpRoutes);
 // proxy already registered before auth (line 64)
 router.use('/api/data',   dataRoutes);
 router.use('/api/foods',  foodsRoutes);
+router.use('/api/lookup', lookupRoutes);
 router.use('/api/meals',  mealsRoutes);
 router.use('/api/diary',  diaryRoutes);
 router.use('/api/activity', activityRoutes);
