@@ -17,7 +17,6 @@
    */
   import { _ } from 'svelte-i18n';
   import { Nutrition } from '../../lib/nutrition.js';
-  import { amountAndUnit } from '../../lib/units.js';
   import { energyUnit } from '../../stores/settings.js';
 
   export let foods = [];
@@ -51,21 +50,23 @@
   }
 
 
+  // Sugar is deliberately not a column: the carb figure answers the same
+  // question at a glance and the sugar value is still stored on the food.
+  // The basis moved into the one note above the table, because every row is
+  // on the same 100 basis and a repeated column buys nothing.
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
-    { key: 'basis', label: 'foods.list.basis', align: 'left' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
-    { key: 'sugars', label: 'foods.list.sugars', align: 'right' },
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
+    { key: 'package_g', label: 'foods.list.pack', align: 'right' },
     { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'price_100', label: 'foods.list.price_100', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
 
   function sortBy(key) {
-    if (key === 'basis') return;
     if (sortKey === key) sortDir = -sortDir;
     else {
       sortKey = key;
@@ -115,6 +116,12 @@
     return value.toFixed(digits).replace('.', ',');
   }
 
+  function num(value, digits = 0) {
+    if (value == null) return '';
+    if (Number.isInteger(Number(value))) return String(Number(value));
+    return Number(value).toFixed(digits).replace('.', ',');
+  }
+
   function money(value) {
     if (value == null) return '';
     return value.toFixed(2).replace('.', ',');
@@ -122,7 +129,7 @@
 
   function sortValue(food, key) {
     if (key === 'name') return String(food.name || '').toLowerCase();
-    if (key === 'basis') return String(food.unit || 'g');
+    if (key === 'package_g') return Number(food.package_g) || -1;
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
     if (key === 'protein_sek') return proteinSek(food) ?? -1;
@@ -166,6 +173,7 @@
       <span class="material-symbols-rounded chip-icon">local_drink</span>
       {$_('foods.list.show_drink')}
     </button>
+    <span class="listview-note">{$_('foods.list.per_100_note')}</span>
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
   <div class="listview-scroll">
@@ -174,18 +182,14 @@
         <tr>
           {#each COLUMNS as col}
             <th class="col-{col.key}" class:right={col.align === 'right'}>
-              {#if col.key === 'basis'}
-                <span class="th-plain">{$_(col.label)}</span>
-              {:else}
-                <button type="button" class="th-sort" class:active={sortKey === col.key}
-                  on:click={() => sortBy(col.key)}
-                  title={$_('foods.list.sort_by', { values: { col: $_(col.label) } })}>
-                  {$_(col.label)}
-                  {#if sortKey === col.key}
-                    <span class="material-symbols-rounded th-arrow">{sortDir > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
-                  {/if}
-                </button>
-              {/if}
+              <button type="button" class="th-sort" class:active={sortKey === col.key}
+                on:click={() => sortBy(col.key)}
+                title={$_('foods.list.sort_by', { values: { col: $_(col.label) } })}>
+                {$_(col.label)}
+                {#if sortKey === col.key}
+                  <span class="material-symbols-rounded th-arrow">{sortDir > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
+                {/if}
+              </button>
             </th>
           {/each}
         </tr>
@@ -215,12 +219,11 @@
                 </span>
               {/if}
             </td>
-            <td class="col-basis">{amountAndUnit(Number(food.portion) || 100, food.unit || 'g')}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
             <td class="col-proteins right">{show(per100(food, 'proteins'))}</td>
             <td class="col-carbohydrates right">{show(per100(food, 'carbohydrates'))}</td>
-            <td class="col-sugars right">{show(per100(food, 'sugars'))}</td>
             <td class="col-fat right">{show(per100(food, 'fat'))}</td>
+            <td class="col-package_g right">{food.package_g ? `${num(food.package_g, 0)} g` : ''}</td>
             <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money(price100(food))}</td>
             <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
@@ -283,7 +286,6 @@
     color: var(--text-3);
     white-space: nowrap;
   }
-  .th-plain { display: block; padding: 8px 10px; }
   .th-sort {
     display: flex;
     align-items: center;
@@ -337,6 +339,7 @@
   }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
-  .col-basis { color: var(--text-2); white-space: nowrap; }
+  .col-package_g { color: var(--text-2); white-space: nowrap; }
+  .listview-note { font-size: 11px; color: var(--text-3); }
   .fav { font-size: 13px; color: var(--accent); }
 </style>
