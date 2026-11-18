@@ -748,9 +748,19 @@
   // Below that, dragging would silently no-op (nowhere to drop); the
   // ⋮ → Copy flow covers the touch use case.
   let _wideViewport = false;
+  // App sets `wide-content` on <html> when the viewport minus a pinned
+  // sidebar leaves room for two panes (≥720px). At ≤1279px that class is
+  // what puts the rail in the fixed two-column tier, so the overview has
+  // to know it before deciding where the panel goes.
+  let _wideContentClass = false;
+  function _syncWideContent() {
+    if (typeof document === 'undefined') return;
+    _wideContentClass = document.documentElement.classList.contains('wide-content');
+  }
   function _syncWideViewport() {
     if (typeof window === 'undefined') return;
     _wideViewport = window.matchMedia('(min-width: 1280px)').matches;
+    _syncWideContent();
   }
   // Re-evaluate whenever the force-mobile toggle flips so drag
   // features don't quietly activate on a viewport the user has
@@ -764,8 +774,17 @@
     const handler = () => _syncWideViewport();
     // .addEventListener is the modern signature; keep .addListener for older Safari
     mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler);
+    window.addEventListener('resize', handler);
+    // App toggles `wide-content` reactively; follow the attribute so the
+    // rail renders in the same tier the stylesheet will style.
+    const obs = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(_syncWideContent)
+      : null;
+    obs?.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => {
       mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler);
+      window.removeEventListener('resize', handler);
+      obs?.disconnect();
     };
   });
 
@@ -1808,6 +1827,13 @@
   // Below 1280px, half open like a book, the rail goes in the page under the
   // meals (see the fold-book rules in the style block) rather than fixed.
   $: _railInline = $fold?.posture === 'book' && !_wideViewport && !$forceMobileLayout;
+  // Same in-page placement for any narrow desktop window that does NOT get
+  // the `wide-content` two-column tier: the overview stays visible at every
+  // window size instead of disappearing below the split point.
+  $: _railNarrowInline = !_wideViewport
+    && !$forceMobileLayout
+    && !_wideContentClass
+    && _railMode === 'pinned';
   $: mealFoldSnap = mealFoldLeftW != null
     && mealFoldLeftW >= 280
     && mealColsW - mealFoldLeftW - mealHinge >= 280;
@@ -2508,7 +2534,7 @@
          (which is itself position:fixed and the app's scroll
          container — descendants of it don't get viewport-relative
          fixed positioning cleanly). -->
-    {#if _railMode === 'hidden' && _wideViewport}
+    {#if _railMode === 'hidden' && !$forceMobileLayout}
       <button
         use:portal
         type="button"
@@ -2530,9 +2556,11 @@
          .diary-content) so both this render and the portaled
          overlay render below can resolve it — Svelte 5 snippets
          have block scope. -->
-    {#if _railInline}
-      <!-- Half open like a book (below 1280px): the rail follows the meals
-           in the page instead of sitting fixed on the right-hand page. -->
+    {#if _railMode === 'pinned' && (_railInline || _railNarrowInline)}
+      <!-- In the page instead of the fixed right column: a half-open fold on
+           a book posture, and any narrow desktop window without the
+           `wide-content` two-column tier. The rail follows the meals rather
+           than squeezing them, so the overview never disappears. -->
       <aside class="diary-right-col diary-rail-inline">
         {@render railWidgets()}
       </aside>
@@ -2563,7 +2591,7 @@
      .page-transition (which is itself position:fixed + overflow-y
      auto — the app's scroll container). Rendered only when the
      overlay is actually open so widgets don't double-mount. -->
-{#if _railMode === 'hidden' && _railOverlay && _wideViewport}
+{#if _railMode === 'hidden' && _railOverlay && !$forceMobileLayout}
   <aside use:portal class="diary-right-col diary-right-col-overlay" use:closeOnBack={() => _railOverlay = false}>
     {@render railWidgets()}
   </aside>
@@ -3542,10 +3570,131 @@
     background: color-mix(in srgb, var(--text-1) 6%, transparent);
     color: var(--text-1);
   }
+  /* Overview rail chrome — title bar, overlay panel and the right-edge
+     restore tab. Width-independent on purpose: the panel has to stay
+     reachable in desktop layout at any window size, so only the
+     force-mobile toggle removes these. */
+  /* Rail title bar. First row of the widget stack — a small
+     header row with an 'Overview' label on the left and the
+     mode-control buttons (pin/hide/close) on the right. Gives
+     the panel a clear identity and a stable home for the
+     controls so widgets below can align with the meal-column
+     top edge cleanly. */
+  :global(html:not(.force-mobile-layout)) .rail-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 4px;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-title-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-title-actions {
+    display: flex;
+    gap: 2px;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-ctrl-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 0;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-ctrl-btn:hover {
+    background: var(--surface-2);
+    color: var(--text-1);
+    border-color: var(--border);
+  }
+  :global(html:not(.force-mobile-layout)) .rail-ctrl-btn .material-symbols-rounded { font-size: 16px; }
+
+  /* Overlay mode: rail returns as a fixed slide-in panel on the
+     right edge with its own scroll region. Sits above the page
+     content, doesn't dim the background (widgets are additive, not
+     a modal task). */
+  /* Overlay panel — the portaled aside variant. Portal moves the
+     DOM to document.body; Svelte's scoped-class hashes still ride
+     along, so scoped styles apply. Fixed positioning resolves
+     against the viewport now that the aside is outside the
+     .page-transition scroll container. */
+  :global(html:not(.force-mobile-layout)) .diary-right-col-overlay {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: fixed;
+    top: calc(var(--page-top, var(--safe-top)) + 60px + var(--hamburger-row, 0px));
+    right: 12px;
+    bottom: 12px;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    z-index: 40;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.35);
+    padding: 12px;
+    overflow-y: auto;
+    /* Reset any sticky-mode constraints inherited via the base
+       class; overlay has its own fixed dimensions. */
+    max-height: none;
+    align-self: auto;
+    animation: rail-slide-in 200ms ease-out;
+  }
+  :global(html:not(.force-mobile-layout)) .diary-right-col-overlay > :global(*) { flex-shrink: 0; }
+  @keyframes rail-slide-in {
+    from { transform: translateX(24px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(html:not(.force-mobile-layout)) .diary-content.rail-overlay-open .diary-right-col { animation: none; }
+  }
+
+  /* Right-edge tab: small vertical chevron button pinned to the
+     right side of the viewport, visible only in hidden mode. Uses
+     fixed positioning so it survives scroll. */
+  :global(html:not(.force-mobile-layout)) .rail-edge-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 56px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 41;
+    transition: background 120ms ease, color 120ms ease, width 120ms ease;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-edge-tab:hover {
+    background: var(--surface-3);
+    color: var(--text-1);
+    width: 28px;
+  }
+  :global(html:not(.force-mobile-layout)) .rail-edge-tab .material-symbols-rounded { font-size: 18px; }
+
   /* Desktop: sit under the week-strip when the strip is visible.
      .page-transition offsets by --sidebar-w on the left, and the fixed
      bar is a descendant of it, so left/right are already relative to
      the sidebar-offset viewport (no manual sidebar math needed). */
+
   @media (min-width: 1280px) {
     :global(html:not(.force-mobile-layout) body > .diary-day-status) {
       top: var(--dds-top, calc(var(--page-top, var(--safe-top)) + 210px + var(--hamburger-row, 0px)));
@@ -3676,6 +3825,24 @@
     display: contents;
   }
   .diary-right-col { display: none; }
+  /* Narrow desktop without the `wide-content` split: the overview follows
+     the meals in the page. Kept out of the wide-content path so the existing
+     fixed two-column tier (foldables open flat) is untouched. */
+  @media (max-width: 1279px) {
+    :global(html:not(.force-mobile-layout):not(.wide-content)) .diary-right-col.diary-rail-inline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: static;
+      top: auto;
+      left: auto;
+      width: auto;
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+      z-index: auto;
+    }
+  }
   /* Rail controls (pin/close chevrons) and edge-tab are desktop-only.
      Hide them explicitly on mobile so the button elements don't
      render at all — the mobile layout has its own top-right icons
@@ -3865,49 +4032,6 @@
       display: none;
     }
 
-    /* Rail title bar. First row of the widget stack — a small
-       header row with an 'Overview' label on the left and the
-       mode-control buttons (pin/hide/close) on the right. Gives
-       the panel a clear identity and a stable home for the
-       controls so widgets below can align with the meal-column
-       top edge cleanly. */
-    :global(html:not(.force-mobile-layout)) .rail-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 2px 4px 4px;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-title-text {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-3);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-title-actions {
-      display: flex;
-      gap: 2px;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-ctrl-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      border-radius: var(--radius-full);
-      width: 22px;
-      height: 22px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-3);
-      cursor: pointer;
-      padding: 0;
-      transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-ctrl-btn:hover {
-      background: var(--surface-2);
-      color: var(--text-1);
-      border-color: var(--border);
-    }
-    :global(html:not(.force-mobile-layout)) .rail-ctrl-btn .material-symbols-rounded { font-size: 16px; }
 
     /* Rail hidden mode. Grid collapses to a single column; the aside
        stops rendering in-flow. A small edge-tab button floats on the
@@ -3919,77 +4043,7 @@
     :global(html:not(.force-mobile-layout)) .diary-content.rail-hidden .diary-right-col {
       display: none;
     }
-    /* Overlay mode: rail returns as a fixed slide-in panel on the
-       right edge with its own scroll region. Sits above the page
-       content, doesn't dim the background (widgets are additive, not
-       a modal task). */
-    /* Overlay panel — the portaled aside variant. Portal moves the
-       DOM to document.body; Svelte's scoped-class hashes still ride
-       along, so scoped styles apply. Fixed positioning resolves
-       against the viewport now that the aside is outside the
-       .page-transition scroll container. */
-    :global(html:not(.force-mobile-layout)) .diary-right-col-overlay {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      position: fixed;
-      top: calc(var(--page-top, var(--safe-top)) + 60px + var(--hamburger-row, 0px));
-      right: 12px;
-      bottom: 12px;
-      width: 380px;
-      max-width: calc(100vw - 24px);
-      z-index: 40;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 20px 50px -20px rgba(0,0,0,0.35);
-      padding: 12px;
-      overflow-y: auto;
-      /* Reset any sticky-mode constraints inherited via the base
-         class; overlay has its own fixed dimensions. */
-      max-height: none;
-      align-self: auto;
-      animation: rail-slide-in 200ms ease-out;
-    }
-    :global(html:not(.force-mobile-layout)) .diary-right-col-overlay > :global(*) { flex-shrink: 0; }
-    @keyframes rail-slide-in {
-      from { transform: translateX(24px); opacity: 0; }
-      to   { transform: translateX(0);    opacity: 1; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      :global(html:not(.force-mobile-layout)) .diary-content.rail-overlay-open .diary-right-col { animation: none; }
-    }
 
-    /* Right-edge tab: small vertical chevron button pinned to the
-       right side of the viewport, visible only in hidden mode. Uses
-       fixed positioning so it survives scroll. */
-    :global(html:not(.force-mobile-layout)) .rail-edge-tab {
-      position: fixed;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 24px;
-      height: 56px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-right: none;
-      border-top-left-radius: var(--radius-md);
-      border-bottom-left-radius: var(--radius-md);
-      color: var(--text-2);
-      cursor: pointer;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 41;
-      transition: background 120ms ease, color 120ms ease, width 120ms ease;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-edge-tab:hover {
-      background: var(--surface-3);
-      color: var(--text-1);
-      width: 28px;
-    }
-    :global(html:not(.force-mobile-layout)) .rail-edge-tab .material-symbols-rounded { font-size: 18px; }
 
     /* Day-swap loading skeleton — subtle shimmer on the meal-cols
        block while the new day's data is in flight. The fade transition
