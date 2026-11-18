@@ -129,7 +129,7 @@
 
   function sortValue(food, key) {
     if (key === 'name') return String(food.name || '').toLowerCase();
-    if (key === 'package_g') return Number(food.package_g) || -1;
+    if (key === 'package_g') return Number(food.package_weight_g) || -1;
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
     if (key === 'protein_sek') return proteinSek(food) ?? -1;
@@ -223,7 +223,7 @@
             <td class="col-proteins right">{show(per100(food, 'proteins'))}</td>
             <td class="col-carbohydrates right">{show(per100(food, 'carbohydrates'))}</td>
             <td class="col-fat right">{show(per100(food, 'fat'))}</td>
-            <td class="col-package_g right">{food.package_g ? `${num(food.package_g, 0)} g` : ''}</td>
+            <td class="col-package_g right">{food.package_weight_g ? `${num(food.package_weight_g, 0)} g` : ''}</td>
             <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money(price100(food))}</td>
             <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
@@ -328,13 +328,17 @@
     .food-table { font-size: 12px; }
     thead th, td { padding: 6px 7px; }
     .col-name { min-width: 150px; }
+    /* Frozen column: tinted and shadowed so the names read as a fixed
+       gutter, not as another value column that happens to stay put. The
+       tint is the accent at low strength, so it works on both themes. */
     th.col-name, td.col-name {
       position: sticky;
       left: 0;
       z-index: 2;
-      background: var(--surface-1);
-      box-shadow: 1px 0 0 var(--border);
+      background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+      box-shadow: 1px 0 0 var(--border), 3px 0 8px -4px rgba(0, 0, 0, 0.35);
     }
+    th.col-name { background: color-mix(in srgb, var(--accent) 14%, var(--surface-1)); }
     .chip { padding: 4px 9px; font-size: 11px; }
   }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
