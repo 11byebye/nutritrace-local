@@ -1586,6 +1586,10 @@
    * the notes rather than the package field.
    */
   function _foodFromMatsiktet(code, p) {
+    // A price lands in the editor's own fields: amount = what the pack costs,
+    // pack = the size it costs for. Willys is an exact barcode match; an ICA
+    // row is a name match and says so, with the store it was priced at.
+    const price = p.price && Number.isFinite(Number(p.price.amount)) ? p.price : null;
     return {
       name: p.name,
       brand: p.brand || undefined,
@@ -1594,7 +1598,12 @@
       portion: 100,
       unit: 'g',
       package_weight_g: p.package_g ?? undefined,
-      notes: [p.volume_note, 'matsiktet.se'].filter(Boolean).join(' · '),
+      price: price ? Number(price.amount) : undefined,
+      notes: [
+        p.volume_note,
+        price ? `${price.exact ? 'pris' : 'pris ca'} ${price.store}` : null,
+        'matsiktet.se',
+      ].filter(Boolean).join(' · '),
       _seHydrated: true,
     };
   }

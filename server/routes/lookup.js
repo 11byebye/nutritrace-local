@@ -26,12 +26,37 @@ import {
   MATSIKTET_UA, normalizeGtin, productUrl, searchUrl,
   parseProduct, parseSearch, firstSearchGtin, parseLabelText,
 } from '../lib/matsiktet.js';
+import { priceFor } from '../lib/store-price.js';
 
 const router = Router();
 router.use(requireAuth);
 router.use(makeRateLimiter({ max: 30, windowMs: 60_000, label: 'lookup' }));
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Prices move; the product itself does not. A separate, short cache keeps a
+// shelf change visible the same day without a second catalogue request.
+const PRICE_TTL_MS = 6 * 60 * 60 * 1000;
+const PRICE_CACHE_MAX = 1000;
+const _priceCache = new Map();
+
+async function withPrice(result) {
+  if (!result?.found) return result;
+  const key = result.gtin || result.barcode || result.name;
+  const hit = _priceCache.get(key);
+  if (hit && Date.now() - hit.at < PRICE_TTL_MS) return { ...result, price: hit.value };
+  const price = await priceFor({
+    barcode: result.gtin,
+    name: result.name,
+    brand: result.brand,
+    package_g: result.package_g,
+  }).catch(() => null);
+  if (_priceCache.size >= PRICE_CACHE_MAX) {
+    const oldest = _priceCache.keys().next().value;
+    if (oldest !== undefined) _priceCache.delete(oldest);
+  }
+  _priceCache.set(key, { at: Date.now(), value: price });
+  return { ...result, price };
+}
 const CACHE_MAX = 2000;
 const _cache = new Map();
 
@@ -99,7 +124,7 @@ async function lookupSearch(query) {
 
 router.get('/gtin/:code', async (req, res) => {
   try {
-    res.json(await lookupGtin(req.params.code));
+    res.json(await withPrice(await lookupGtin(req.params.code)));
   } catch (err) {
     logger.warn({ err: err?.message }, 'matsiktet gtin lookup failed');
     res.status(502).json({ found: false, error: 'lookup unavailable' });
