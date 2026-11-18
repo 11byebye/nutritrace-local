@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeGtin, parseAmount, parseEnergy, parseNutritionTable,
   parseProduct, parseSearch, firstSearchGtin, parsePackageWeight,
-  parseVolumeNote, parseLabelText, productUrl, searchUrl,
+  parseVolumeNote, parseLabelText, productUrl, searchUrl, canonicalName,
 } from '../server/lib/matsiktet.js';
 
 const PRODUCT_HTML = `<!doctype html><html><body>
@@ -194,6 +194,17 @@ test('energy: a stray kcai / kca1 spelling still reads as kcal', () => {
   assert.deepEqual(parseEnergy('90 kca1'), { calories: 90 });
   assert.deepEqual(parseEnergy('90 kcai'), { calories: 90 });
   assert.deepEqual(parseEnergy('390 kI'), { kilojoules: 390, calories: 93.2 });
+});
+
+test('a title listing alternates collapses to the specific one', () => {
+  // Live page 2026-11-18 (EAN 7350014910998): the h1 repeats the name.
+  assert.equal(canonicalName(
+    'Full Protein 80 Whey+Collagen / Full Protein 80 Whey+Collagen watermelon strawberry 1kg / Full Protein 80 Whey+Collagen',
+    1000,
+  ), 'Full Protein 80 Whey+Collagen watermelon strawberry');
+  assert.equal(canonicalName('Havregryn Eko Fiber', 800), 'Havregryn Eko Fiber');
+  // A size that differs from the pack is part of the name, not a suffix.
+  assert.equal(canonicalName('Glass 500 g', 1000), 'Glass 500 g');
 });
 
 test('URLs stay on the fixed host', () => {

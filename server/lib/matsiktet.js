@@ -166,14 +166,40 @@ export function parseVolumeNote(raw) {
 }
 
 /**
+ * The page title is sometimes a list of alternate titles separated by " / "
+ * (one live page, 2026-11-18, reads "Full Protein 80 Whey+Collagen / … 1kg /
+ * Full Protein 80 Whey+Collagen"). Pick the most specific single title, then
+ * drop a trailing size the pack field already carries.
+ */
+export function canonicalName(raw, packG = null) {
+  let name = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (name.includes('/')) {
+    const parts = [...new Set(name.split('/').map(p => p.trim()).filter(Boolean))];
+    if (parts.length > 1) name = parts.reduce((a, b) => (b.length > a.length ? b : a));
+  }
+  if (packG) {
+    const m = name.match(/\s+(\d+(?:[.,]\d+)?)\s*(kg|g)\s*$/i);
+    if (m) {
+      const grams = /kg/i.test(m[2])
+        ? Number(m[1].replace(',', '.')) * 1000
+        : Number(m[1].replace(',', '.'));
+      if (Math.abs(grams - Number(packG)) <= Math.max(5, Number(packG) * 0.02)) {
+        name = name.slice(0, m.index).trim();
+      }
+    }
+  }
+  return name;
+}
+
+/**
  * One product page -> { found, name, brand, package_g, volume_note, nutrition }.
  * A page without a nutrition table is not a hit: the caller falls through.
  */
 export function parseProduct(html, { gtin = null } = {}) {
   const src = String(html || '');
   const nutrition = parseNutritionTable(src);
-  const name = firstMatch(src, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  if (!name || Object.keys(nutrition).length === 0) {
+  const rawName = firstMatch(src, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (!rawName || Object.keys(nutrition).length === 0) {
     return { found: false, gtin };
   }
   const brand = firstMatch(src, /<a[^>]*class="[^"]*product-brand-link[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
@@ -185,6 +211,7 @@ export function parseProduct(html, { gtin = null } = {}) {
   const weightText = weightBlock ? textOf(weightBlock[1]) : null;
   const package_g = weightText ? parsePackageWeight(weightText) : null;
   const volume_note = weightText ? parseVolumeNote(weightText) : null;
+  const name = canonicalName(rawName, package_g);
   return {
     found: true,
     gtin,
