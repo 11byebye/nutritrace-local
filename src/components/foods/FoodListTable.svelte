@@ -172,12 +172,14 @@
     return per100(food, key) ?? -1;
   }
 
+  // Two independent selectors. Food/Drink picks the kind, the four tags pick
+  // a category *regardless of kind*: Alcohol lists every drink-tagged item
+  // even with Drink off, and Meat/Veg/Snacks list their items even with Food
+  // off. A row with no tag still follows the kind chip only.
   $: filtered = foods.filter((f) => {
     const drink = isDrink(f);
-    if (drink ? !showDrink : !showFood) return false;
-    const tags = tagsOf(f);
-    if (tags.length === 0) return true;
-    return tags.some((t) => activeTags[t]);
+    if (drink ? showDrink : showFood) return true;
+    return tagsOf(f).some((t) => activeTags[t]);
   });
 
   $: sorted = (() => {
