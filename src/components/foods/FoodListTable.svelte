@@ -105,6 +105,7 @@
   // on the same 100 basis and a repeated column buys nothing.
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
+    { key: 'category', label: 'foods.list.category', align: 'left' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
@@ -178,6 +179,7 @@
 
   function sortValue(food, key) {
     if (key === 'name') return String(food.name || '').toLowerCase();
+    if (key === 'category') return catText(food).toLowerCase();
     if (key === 'package_g') return Number(food.package_weight_g) || -1;
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
@@ -281,6 +283,7 @@
                 </span>
               {/if}
             </td>
+            <td class="col-category">{catText(food)}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
             <td class="col-proteins right">{show(per100(food, 'proteins'))}</td>
             <td class="col-carbohydrates right">{show(per100(food, 'carbohydrates'))}</td>
@@ -383,6 +386,13 @@
     white-space: nowrap;
   }
   .col-name { min-width: 190px; }
+  .col-category {
+    color: var(--text-2);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   /* Phone: the table scrolls sideways with the name pinned, so a row keeps
      its identity while the numbers slide. Hiding columns instead would hide
      the very numbers being compared. */

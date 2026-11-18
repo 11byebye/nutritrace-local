@@ -901,7 +901,8 @@
       "tag_alcohol": "Alcohol",
       "tag_snacks": "Snacks",
       "tag_meat": "Meat",
-      "tag_veg": "Veg"
+      "tag_veg": "Veg",
+      "category": "Category"
     }
   },
   "trace": {
