@@ -149,43 +149,45 @@ async function willysPrice({ barcode, name, brand, package_g }) {
 
 // ── ICA ──────────────────────────────────────────────────────────────────
 
-let _icaAccount = null;
-let _icaStoreName = null;
+let _icaStores = null;
 
-async function icaStore() {
-  if (_icaAccount) return { account: _icaAccount, name: _icaStoreName };
+/** The nearest online stores, in the order the API answers them. */
+async function icaStores() {
+  if (_icaStores) return _icaStores;
   const zip = String(process.env.NT_ICA_ZIP || '51440').replace(/\D/g, '') || '51440';
   const data = await fetchJson(`${ICA_STORE_API}/api/store/v1?zip=${encodeURIComponent(zip)}`, { ua: ICA_UA });
-  const stores = [...(data?.forPickupDelivery || []), ...(data?.forHomeDelivery || [])];
-  const first = stores.find(s => s.accountId);
-  if (!first) return null;
-  _icaAccount = String(first.accountId);
-  _icaStoreName = first.name || 'ICA';
-  return { account: _icaAccount, name: _icaStoreName };
+  // Larger formats first: a Kvantum carries the own-brands a Nära does not,
+  // and the token is metered, so the first store should usually be the hit.
+  const rank = { kvantum: 0, supermarket: 1, maxi: 2, nara: 3 };
+  const rows = [...(data?.forPickupDelivery || []), ...(data?.forHomeDelivery || [])]
+    .filter(s => s?.accountId)
+    .map((s, i) => ({
+      account: String(s.accountId),
+      name: s.name || 'ICA',
+      _rank: rank[String(s.storeFormat || '').toLowerCase()] ?? 4,
+      _i: i,
+    }))
+    .sort((a, b) => a._rank - b._rank || a._i - b._i);
+  _icaStores = rows.slice(0, 3).map(({ account, name }) => ({ account, name }));
+  return _icaStores;
 }
 
-async function icaPrice({ name, brand, package_g }) {
-  const cookie = String(process.env.NT_ICA_COOKIE || '').trim();
-  if (!cookie) return null;
-  const store = await icaStore();
-  if (!store) return null;
-  const query = [brand, name].filter(Boolean).join(' ').trim().slice(0, 80);
-  if (!query) return null;
+async function icaRows(account, query, cookie) {
   const params = new URLSearchParams({
     q: query, tag: 'web', maxPageSize: '10', maxProductsToDecorate: '10',
   });
   const data = await fetchJson(
-    `${ICA_WEB_API}/stores/${store.account}/api/webproductpagews/v6/product-pages/search?${params}`,
+    `${ICA_WEB_API}/stores/${account}/api/webproductpagews/v6/product-pages/search?${params}`,
     { ua: ICA_UA, cookie },
   );
   if (!data) return null;
-  const rows = [];
+  const out = [];
   for (const group of data.productGroups || []) {
     let products = group.decoratedProducts || [];
     if (!Array.isArray(products)) products = products.products || [];
     for (const p of products) {
       if (!p?.name) continue;
-      rows.push({
+      out.push({
         name: p.name,
         brand: p.brand || null,
         package_g: packGrams(p.packSizeDescription),
@@ -194,17 +196,40 @@ async function icaPrice({ name, brand, package_g }) {
       });
     }
   }
-  const hit = rows.find(r => Number.isFinite(r.amount) && r.amount > 0 && looksSame({ name, brand, package_g }, r));
-  if (!hit) return null;
-  return {
-    amount: hit.amount,
-    currency: 'SEK',
-    store: store.name,
-    exact: false,
-    compare: null,
-    compare_unit: null,
-    pack: hit.pack,
-  };
+  return out;
+}
+
+/**
+ * Name match only: ICA has no EAN, so the guard in looksSame is the whole
+ * safety story, and the answer is marked approximate with its store.
+ *
+ * One query per store, nearest first, because the token is metered: a small
+ * ICA Nära carries less than a Kvantum, so stop at the first store that has
+ * a matching row rather than asking every store for every scan.
+ */
+async function icaPrice({ name, brand, package_g }) {
+  const cookie = String(process.env.NT_ICA_COOKIE || '').trim();
+  if (!cookie) return null;
+  const query = String(name || '').trim().slice(0, 80);
+  if (!query) return null;
+  const stores = await icaStores();
+  for (const store of stores) {
+    const rows = await icaRows(store.account, query, cookie);
+    if (!rows?.length) continue;
+    const hit = rows.find(r => Number.isFinite(r.amount) && r.amount > 0
+      && looksSame({ name, brand, package_g }, r));
+    if (!hit) continue;
+    return {
+      amount: hit.amount,
+      currency: 'SEK',
+      store: store.name,
+      exact: false,
+      compare: null,
+      compare_unit: null,
+      pack: hit.pack,
+    };
+  }
+  return null;
 }
 
 /** Both shops, best first: an exact Willys EAN beats an ICA name match. */
