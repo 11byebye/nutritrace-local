@@ -39,22 +39,28 @@ const PRICE_TTL_MS = 6 * 60 * 60 * 1000;
 const PRICE_CACHE_MAX = 1000;
 const _priceCache = new Map();
 
-async function withPrice(result) {
-  if (!result?.found) return result;
-  const key = result.gtin || result.barcode || result.name;
+/** Cached price for one product shape; six hours, keyed by barcode + name. */
+async function cachedPrice(product) {
+  const key = `${product?.barcode || ''}|${String(product?.name || '').toLowerCase()}`;
   const hit = _priceCache.get(key);
-  if (hit && Date.now() - hit.at < PRICE_TTL_MS) return { ...result, price: hit.value };
-  const price = await priceFor({
-    barcode: result.gtin,
-    name: result.name,
-    brand: result.brand,
-    package_g: result.package_g,
-  }).catch(() => null);
+  if (hit && Date.now() - hit.at < PRICE_TTL_MS) return hit.value;
+  const price = await priceFor(product).catch(() => null);
   if (_priceCache.size >= PRICE_CACHE_MAX) {
     const oldest = _priceCache.keys().next().value;
     if (oldest !== undefined) _priceCache.delete(oldest);
   }
   _priceCache.set(key, { at: Date.now(), value: price });
+  return price;
+}
+
+async function withPrice(result) {
+  if (!result?.found) return result;
+  const price = await cachedPrice({
+    barcode: result.gtin,
+    name: result.name,
+    brand: result.brand,
+    package_g: result.package_g,
+  });
   return { ...result, price };
 }
 const CACHE_MAX = 2000;
@@ -137,6 +143,30 @@ router.get('/search', async (req, res) => {
   } catch (err) {
     logger.warn({ err: err?.message }, 'matsiktet search failed');
     res.status(502).json({ items: [], error: 'lookup unavailable' });
+  }
+});
+
+/**
+ * Price only, for a product whose macros came from another source (an OFF hit
+ * has no price and usually no pack size). `name` and `brand` are what the
+ * shop search needs; `pack` is grams when known.
+ */
+router.get('/price', async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  const name = String(req.query.name || '').trim();
+  if (!code && !name) return res.status(400).json({ price: null, error: 'code or name required' });
+  try {
+    const pack = Number(req.query.pack);
+    const price = await cachedPrice({
+      barcode: code || null,
+      name,
+      brand: String(req.query.brand || '').trim() || null,
+      package_g: Number.isFinite(pack) && pack > 0 ? pack : null,
+    });
+    res.json({ price });
+  } catch (err) {
+    logger.warn({ err: err?.message }, 'price lookup failed');
+    res.json({ price: null });
   }
 });
 

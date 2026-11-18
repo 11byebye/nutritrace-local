@@ -177,8 +177,11 @@ export function parseProduct(html, { gtin = null } = {}) {
     return { found: false, gtin };
   }
   const brand = firstMatch(src, /<a[^>]*class="[^"]*product-brand-link[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
+  // Some pages carry only the pack field, others only the net content; read
+  // whichever exists ("200 g, Påse" parses the same as "200 g").
   const weightBlock = src.match(/<strong>\s*Nettoinneh[^<]*<\/strong>\s*<div>([\s\S]*?)<\/div>/i)
-    || src.match(/<strong>\s*Nettovikt[^<]*<\/strong>\s*<div>([\s\S]*?)<\/div>/i);
+    || src.match(/<strong>\s*Nettovikt[^<]*<\/strong>\s*<div>([\s\S]*?)<\/div>/i)
+    || src.match(/<strong>\s*F[öo]rpackningsstorlek[^<]*<\/strong>\s*<div>([\s\S]*?)<\/div>/i);
   const weightText = weightBlock ? textOf(weightBlock[1]) : null;
   const package_g = weightText ? parsePackageWeight(weightText) : null;
   const volume_note = weightText ? parseVolumeNote(weightText) : null;

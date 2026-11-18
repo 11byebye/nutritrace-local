@@ -1614,6 +1614,39 @@
     catch { return null; }
   }
 
+  /** "200g", "0,7kg", "1,5 l" -> grams (null for a volume). */
+  function _packGramsClient(raw) {
+    const s = String(raw || '').toLowerCase().replace(',', '.');
+    const kg = s.match(/(\d+(?:\.\d+)?)\s*kg\b/);
+    if (kg) return Math.round(Number(kg[1]) * 1000);
+    const g = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
+    if (g) return Number(g[1]);
+    return null;
+  }
+
+  /**
+   * Attach a shop price to a food that came from another source (OFF has no
+   * price and often no pack size). The server prices exact at Willys by
+   * barcode and approximately at ICA by name, and the shop's pack fills the
+   * size field when the source left it empty.
+   */
+  async function _attachPrice(food, code) {
+    if (!food || food.price) return food;
+    try {
+      const params = new URLSearchParams({ code: code || '', name: food.name || '', brand: food.brand || '' });
+      if (food.package_weight_g) params.set('pack', String(food.package_weight_g));
+      const r = await NtApi.get('/api/lookup/price?' + params.toString());
+      if (r?.price?.amount) {
+        food.price = Number(r.price.amount);
+        if (!food.package_weight_g) {
+          const g = _packGramsClient(r.price.pack);
+          if (g) food.package_weight_g = g;
+        }
+      }
+    } catch { /* no price is a normal answer */ }
+    return food;
+  }
+
   async function handleLabelPhoto({ detail }) {
     const file = detail?.file;
     if (!file) return;
@@ -1702,6 +1735,7 @@
       const { API } = await import('../lib/api.js');
       const result = await API.lookupBarcode(code);
       if (result) {
+        await _attachPrice(result, code);
         // OFF returned data for this barcode — show the nutrition-facts
         // detail sheet first (with Edit + Add to Diary options) instead
         // of jumping straight into the editor. Matches the OFF-search-tap

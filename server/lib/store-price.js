@@ -121,8 +121,18 @@ export function looksSame({ name, brand, package_g }, candidate) {
   return true;
 }
 
+/** OFF names carry commas and stray punctuation; the shops search words. */
+export function cleanQuery(raw) {
+  return String(raw || '')
+    .replace(/[,;()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function willysPrice({ barcode, name, brand, package_g }) {
-  const queries = [brand ? `${brand} ${name}` : '', name].filter(Boolean).slice(0, 2);
+  const cleanName = cleanQuery(name);
+  const cleanBrand = cleanQuery(brand);
+  const queries = [cleanBrand ? `${cleanBrand} ${cleanName}` : '', cleanName].filter(Boolean).slice(0, 2);
   const seen = new Set();
   for (const q of queries) {
     const data = await fetchJson(`${WILLYS}/search?q=${encodeURIComponent(q)}`);
@@ -210,7 +220,7 @@ async function icaRows(account, query, cookie) {
 async function icaPrice({ name, brand, package_g }) {
   const cookie = String(process.env.NT_ICA_COOKIE || '').trim();
   if (!cookie) return null;
-  const query = String(name || '').trim().slice(0, 80);
+  const query = cleanQuery(name).slice(0, 80);
   if (!query) return null;
   const stores = await icaStores();
   for (const store of stores) {
