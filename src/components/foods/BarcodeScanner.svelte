@@ -27,6 +27,10 @@
   let scannerDiv;
   let engine = null;
   let detected = false;
+  // The label-photo path (server OCR) is hidden: on real labels it read
+  // nothing useful while "Barcode from a photo" does the job. Flip to true
+  // to bring the row back; the /api/lookup/label route is still live.
+  const SHOW_LABEL_PHOTO = false;
   let selectedEngine = localStorage.getItem('wl_scanEngine') || 'zxing';
   let selectedCamId  = localStorage.getItem('wl_scanCamId')  || '';
   let cameras = [];
@@ -170,7 +174,8 @@
           m.addedNodes && m.addedNodes.forEach(node => {
             if (node.nodeType !== 1) return;
             const id = node.id || '';
-            if (id === 'qr-shaded-region' || id.includes('__scan_region__') || id.includes('__dashboard') || id.includes('__header')) {
+            if (id === 'qr-shaded-region' || id.includes('__scan_region__') || id.includes('__dashboard')
+                || id.includes('__header') || id.includes('file-selection')) {
               _hideEl(node);
             } else if (id.includes('__scan_region')) {
               node.style.setProperty('position','absolute','important');
@@ -203,6 +208,10 @@
           if (!detected) status = 'Align Barcode';
           try {
             inner.querySelectorAll('div,img,button,span').forEach(el => _hideEl(el));
+            // html5-qrcode ships its own "scan an image file" button; ours is
+            // the one that works, so make sure the default never shows.
+            const _fileBtn = document.getElementById('html5-qrcode-button-file-selection');
+            if (_fileBtn) _hideEl(_fileBtn);
             const shaded = document.getElementById('qr-shaded-region');
             if (shaded) _hideEl(shaded);
             const vid = inner.querySelector('video');
@@ -578,11 +587,13 @@
         />
         <button class="btn btn-primary" on:click={doManualNative}>{$_('barcode_scanner.lookup')}</button>
       </div>
-      <label class="ns-label-photo">
-        <span class="material-symbols-rounded">photo_camera</span>
-        Photo of the label
-        <input type="file" accept="image/*" on:change={onLabelPhoto} />
-      </label>
+      {#if SHOW_LABEL_PHOTO}
+        <label class="ns-label-photo">
+          <span class="material-symbols-rounded">photo_camera</span>
+          Photo of the label
+          <input type="file" accept="image/*" on:change={onLabelPhoto} />
+        </label>
+      {/if}
       <label class="ns-label-photo ns-photo-second">
         <span class="material-symbols-rounded">image</span>
         Barcode from a photo
@@ -671,11 +682,13 @@
         />
         <button class="btn btn-primary" on:click={doManual}>{$_('barcode_scanner.lookup')}</button>
       </div>
-      <label class="scanner-label-photo">
-        <span class="material-symbols-rounded">photo_camera</span>
-        Photo of the label
-        <input type="file" accept="image/*" on:change={onLabelPhoto} />
-      </label>
+      {#if SHOW_LABEL_PHOTO}
+        <label class="scanner-label-photo">
+          <span class="material-symbols-rounded">photo_camera</span>
+          Photo of the label
+          <input type="file" accept="image/*" on:change={onLabelPhoto} />
+        </label>
+      {/if}
       <label class="scanner-label-photo sc-photo-second">
         <span class="material-symbols-rounded">image</span>
         Barcode from a photo
@@ -864,7 +877,7 @@
   .scanner-label-photo:hover, .ns-label-photo:hover { background: var(--surface-3); color: var(--text-1); }
   .scanner-label-photo .material-symbols-rounded, .ns-label-photo .material-symbols-rounded { font-size: 18px; }
   .scanner-label-photo input, .ns-label-photo input { display: none; }
-  .sc-photo-second, .ns-photo-second { border-top: none; padding-top: 6px; }
+  .sc-photo-second, .ns-photo-second { border-top: 1px solid var(--border); }
 
   /* Native ML Kit scanner overlay (bundled, no Play Services) — camera
      renders BEHIND the WebView. We just draw chrome on top. */

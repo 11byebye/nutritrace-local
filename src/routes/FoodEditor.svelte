@@ -997,6 +997,86 @@
       <input bind:this={fileInput} type="file" accept="image/*" style="display:none" on:change={onFileChange} />
     </div>
 
+    <!-- Barcode — directly under the photo so a scan needs no scrolling. -->
+    <div class="card editor-card">
+      <div class="editor-card-title">{$_('food_editor.field_barcode')}</div>
+      <div class="form-group">
+        <div class="barcode-input-wrap">
+          <input class="input barcode-input" type="text" inputmode="numeric" placeholder={$_('food_editor.placeholder_optional')} bind:value={food.barcode} />
+          <button type="button" class="btn-scan-inline" title={$_('food_editor.scan_barcode')} aria-label={$_('food_editor.scan_barcode')}
+            on:click={() => editorScannerOpen = true}>
+            <span class="material-symbols-rounded">barcode_scanner</span>
+          </button>
+        </div>
+        {#if duplicateOf}
+          <div class="barcode-dup-warn">
+            <span class="material-symbols-rounded" style="font-size:16px;color:var(--warning,#f59e0b)">warning</span>
+            <span>You already have a food with this barcode: <strong>{duplicateOf.name}</strong></span>
+            <button type="button" class="btn-link" on:click={() => {
+              clearFoodEditorState();
+              editorState.foodStore = store;
+              if (editorState.foodDiaryCtx) { /* preserve pick-mode context */ }
+              push(`/foods/edit/${duplicateOf.id}`);
+            }}>Open existing →</button>
+          </div>
+        {/if}
+        {#if hasBarcode}
+          <div class="form-row" style="gap:8px;margin-top:8px">
+            <button class="btn btn-secondary" style="flex:1"
+              on:click={shareOrViewOnOFF} disabled={contributing}>
+              <span class="material-symbols-rounded" style="font-size:15px;vertical-align:middle;margin-right:4px">
+                {offProductExists ? 'open_in_new' : 'upload'}
+              </span>
+              {contributing ? 'Uploading…' : offSuccess ? 'Submitted!' : offProductExists ? 'View on OFF' : 'Share to OFF'}
+            </button>
+            <button class="btn btn-secondary" style="flex:1"
+              on:click={downloadFromOFF} disabled={downloading}>
+              <span class="material-symbols-rounded" style="font-size:15px;vertical-align:middle;margin-right:4px">download</span>
+              {downloading ? 'Loading…' : downloadSuccess ? 'Updated!' : 'Refresh from OFF'}
+            </button>
+          </div>
+          {#if _offNotice}
+            <div class="off-prepared-notice" role="status">
+              <span class="material-symbols-rounded" aria-hidden="true">info</span>
+              <div class="off-prepared-body">
+                {#if _offNotice.status === 'prepared'}
+                  <p>{$_('food_editor.off_prepared.only_prepared', { values: { kcal: _offNotice.kcal, unit: _offNotice.unit } })}</p>
+                  <button class="btn btn-secondary btn-sm" on:click={usePreparedValues}>{$_('food_editor.off_prepared.use')}</button>
+                {:else if _offNotice.status === 'implausible'}
+                  <p>{$_('food_editor.off_prepared.implausible', { values: { kcal: _offNotice.kcal, unit: _offNotice.unit } })}</p>
+                {:else}
+                  <p>{$_('food_editor.off_prepared.none')}</p>
+                {/if}
+              </div>
+            </div>
+          {/if}
+          {#if offSuccess}
+            <div class="off-verify-row">
+              {#if offVerified === null}
+                <span class="off-verify-checking">
+                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">hourglass_top</span>
+                  Verifying on Open Food Facts…
+                </span>
+              {:else if offVerified}
+                <span class="off-verify-ok">
+                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">check_circle</span>
+                  Confirmed live on Open Food Facts
+                </span>
+              {:else}
+                <span class="off-verify-pending">
+                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">schedule</span>
+                  Submitted — may take a few minutes to appear
+                </span>
+              {/if}
+              <a class="off-verify-link" href="https://world.openfoodfacts.org/product/{food.barcode}" target="_blank" rel="noopener">
+                View on Open Food Facts <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle">open_in_new</span>
+              </a>
+            </div>
+          {/if}
+        {/if}
+      </div>
+    </div>
+
     <!-- Camera popup -->
     {#if showCamera}
       <div class="cam-overlay" role="dialog" aria-modal="true" use:portal use:closeOnBack={stopCamera}>
@@ -1181,82 +1261,6 @@
         </div>
       </div>
       {/if}
-      <div class="form-group">
-        <label class="form-label">{$_('food_editor.field_barcode')}</label>
-        <div class="barcode-input-wrap">
-          <input class="input barcode-input" type="text" inputmode="numeric" placeholder={$_('food_editor.placeholder_optional')} bind:value={food.barcode} />
-          <button type="button" class="btn-scan-inline" title={$_('food_editor.scan_barcode')} aria-label={$_('food_editor.scan_barcode')}
-            on:click={() => editorScannerOpen = true}>
-            <span class="material-symbols-rounded">barcode_scanner</span>
-          </button>
-        </div>
-        {#if duplicateOf}
-          <div class="barcode-dup-warn">
-            <span class="material-symbols-rounded" style="font-size:16px;color:var(--warning,#f59e0b)">warning</span>
-            <span>You already have a food with this barcode: <strong>{duplicateOf.name}</strong></span>
-            <button type="button" class="btn-link" on:click={() => {
-              clearFoodEditorState();
-              editorState.foodStore = store;
-              if (editorState.foodDiaryCtx) { /* preserve pick-mode context */ }
-              push(`/foods/edit/${duplicateOf.id}`);
-            }}>Open existing →</button>
-          </div>
-        {/if}
-        {#if hasBarcode}
-          <div class="form-row" style="gap:8px;margin-top:8px">
-            <button class="btn btn-secondary" style="flex:1"
-              on:click={shareOrViewOnOFF} disabled={contributing}>
-              <span class="material-symbols-rounded" style="font-size:15px;vertical-align:middle;margin-right:4px">
-                {offProductExists ? 'open_in_new' : 'upload'}
-              </span>
-              {contributing ? 'Uploading…' : offSuccess ? 'Submitted!' : offProductExists ? 'View on OFF' : 'Share to OFF'}
-            </button>
-            <button class="btn btn-secondary" style="flex:1"
-              on:click={downloadFromOFF} disabled={downloading}>
-              <span class="material-symbols-rounded" style="font-size:15px;vertical-align:middle;margin-right:4px">download</span>
-              {downloading ? 'Loading…' : downloadSuccess ? 'Updated!' : 'Refresh from OFF'}
-            </button>
-          </div>
-          {#if _offNotice}
-            <div class="off-prepared-notice" role="status">
-              <span class="material-symbols-rounded" aria-hidden="true">info</span>
-              <div class="off-prepared-body">
-                {#if _offNotice.status === 'prepared'}
-                  <p>{$_('food_editor.off_prepared.only_prepared', { values: { kcal: _offNotice.kcal, unit: _offNotice.unit } })}</p>
-                  <button class="btn btn-secondary btn-sm" on:click={usePreparedValues}>{$_('food_editor.off_prepared.use')}</button>
-                {:else if _offNotice.status === 'implausible'}
-                  <p>{$_('food_editor.off_prepared.implausible', { values: { kcal: _offNotice.kcal, unit: _offNotice.unit } })}</p>
-                {:else}
-                  <p>{$_('food_editor.off_prepared.none')}</p>
-                {/if}
-              </div>
-            </div>
-          {/if}
-          {#if offSuccess}
-            <div class="off-verify-row">
-              {#if offVerified === null}
-                <span class="off-verify-checking">
-                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">hourglass_top</span>
-                  Verifying on Open Food Facts…
-                </span>
-              {:else if offVerified}
-                <span class="off-verify-ok">
-                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">check_circle</span>
-                  Confirmed live on Open Food Facts
-                </span>
-              {:else}
-                <span class="off-verify-pending">
-                  <span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">schedule</span>
-                  Submitted — may take a few minutes to appear
-                </span>
-              {/if}
-              <a class="off-verify-link" href="https://world.openfoodfacts.org/product/{food.barcode}" target="_blank" rel="noopener">
-                View on Open Food Facts <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle">open_in_new</span>
-              </a>
-            </div>
-          {/if}
-        {/if}
-      </div>
     </div>
 
     <!-- Categories -->
