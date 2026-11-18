@@ -897,7 +897,11 @@
       "show_drink": "Drink",
       "filters_empty": "Both filters are off — turn Food or Drink back on.",
       "pack": "Pack",
-      "per_100_note": "All values per 100 g/ml"
+      "per_100_note": "All values per 100 g/ml",
+      "tag_alcohol": "Alcohol",
+      "tag_snacks": "Snacks",
+      "tag_meat": "Meat",
+      "tag_veg": "Veg"
     }
   },
   "trace": {

@@ -39,6 +39,42 @@
   let showFood = true;
   let showDrink = true;
 
+  // Tag chips. A food can belong to several of these (chorizo is meat and a
+  // snack; a beer is alcohol and a drink), so they are derived tags, not the
+  // stored single category. Unknown on every tag = never hidden by them.
+  const TAG_DEFS = [
+    { key: 'alcohol', label: 'foods.list.tag_alcohol', icon: 'wine_bar',
+      re: /vin\b|vitt vin|rött vin|mousserande|prosecco|champagne|cava|\böl\b|\bipa\b|lager\b|\bcider\b|sprit|whisk|gin\b|rom\b|vodka|sangria|glögg|\bvin/i },
+    { key: 'snacks', label: 'foods.list.tag_snacks', icon: 'cookie',
+      re: /chips|ostbåg|popcorn|jordnöt|cashew|mandel|nöt|godis|choklad|kaka\b|kakor|kex|glass|snack|salami|chark|saltad/i },
+    { key: 'meat', label: 'foods.list.tag_meat', icon: 'kebab_dining',
+      re: /kyckling|fläsk|nöt\b|nötkött|kött|färs|bacon|skinka|korv|salami|kalkon|lamm|kalv|kebab|hamburgare|biff|filé|fransyska|fläskytterfilé/i },
+    { key: 'veg', label: 'foods.list.tag_veg', icon: 'eco',
+      re: /grönsak|tomat|gurka|paprika|sallad|spenat|broccoli|blomkål|morot|lök|potatis|kål|zucchini|svamp|avokado|majs|böna|lins|kikärt|ärt|rödbeta|kålrot|purjolök|vitlök|fänkål|sparris|ingefära/i },
+  ];
+
+  // Names that satisfy a tag by their stored category alone.
+  const TAG_CATEGORY = {
+    alcohol: /dryck/i,
+    snacks: /sötsaker|socker/i,
+    meat: /kött|fågel/i,
+    veg: /grönsak|rotfrukt/i,
+  };
+
+  let activeTags = Object.fromEntries(TAG_DEFS.map((t) => [t.key, true]));
+
+  function tagsOf(food) {
+    const text = `${food.name || ''} ${food.brand || ''}`;
+    const cat = String(food.category || '');
+    const out = [];
+    for (const def of TAG_DEFS) {
+      if (def.re.test(text) || (TAG_CATEGORY[def.key] && TAG_CATEGORY[def.key].test(cat))) {
+        out.push(def.key);
+      }
+    }
+    return out;
+  }
+
   const DRINK_RE = /dryck|drink|beverage/i;
 
   /** Drinks are the "Dryck" category or anything measured in ml. Category
@@ -138,7 +174,10 @@
 
   $: filtered = foods.filter((f) => {
     const drink = isDrink(f);
-    return drink ? showDrink : showFood;
+    if (drink ? !showDrink : !showFood) return false;
+    const tags = tagsOf(f);
+    if (tags.length === 0) return true;
+    return tags.some((t) => activeTags[t]);
   });
 
   $: sorted = (() => {
@@ -173,6 +212,14 @@
       <span class="material-symbols-rounded chip-icon">local_drink</span>
       {$_('foods.list.show_drink')}
     </button>
+    {#each TAG_DEFS as tag}
+      <button type="button" class="chip" class:on={activeTags[tag.key]}
+        aria-pressed={activeTags[tag.key]}
+        on:click={() => (activeTags = { ...activeTags, [tag.key]: !activeTags[tag.key] })}>
+        <span class="material-symbols-rounded chip-icon">{tag.icon}</span>
+        {$_(tag.label)}
+      </button>
+    {/each}
     <span class="listview-note">{$_('foods.list.per_100_note')}</span>
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
