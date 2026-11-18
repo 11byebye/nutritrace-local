@@ -207,6 +207,36 @@ test('a title listing alternates collapses to the specific one', () => {
   assert.equal(canonicalName('Glass 500 g', 1000), 'Glass 500 g');
 });
 
+test('OCR damage cannot turn a unit into a ten-fold value', () => {
+  // Measured on a tilted, noisy label photo, 2026-11-18: the g read as 9.
+  const bad = parseLabelText(`ICA Basic Kycklinginnerfile
+Naringsvarde per 1009
+Energi 390 kJ / 90 kcal
+Fett 1g
+varav mattat fett 0,5 g
+Kolhydrat 0 g
+varav sockerarter 0 g
+Protein 209
+Salt 0,6 9`);
+  assert.equal(bad.nutrition.calories, 90);
+  assert.equal(bad.nutrition.fat, 1);
+  assert.equal(bad.nutrition['saturated-fat'], 0.5);
+  assert.equal(bad.nutrition.proteins, undefined, 'a unit-less 209 is not 209 g protein');
+  assert.equal(bad.nutrition.salt, undefined, '0,6 9 has no unit');
+});
+
+test('a value past the physical limit is dropped, not stored', () => {
+  const n = parseLabelText(`Test
+Protein 209 g
+Fett 120 g
+Kolhydrat 12 g
+Energi 200 kcal`).nutrition;
+  assert.equal(n.proteins, undefined);
+  assert.equal(n.fat, undefined);
+  assert.equal(n.carbohydrates, 12);
+  assert.equal(n.calories, 200);
+});
+
 test('URLs stay on the fixed host', () => {
   assert.equal(productUrl('07318690093213'), 'https://matsiktet.se/produkt.php?gtin=07318690093213');
   assert.match(searchUrl('grädde 40%'), /^https:\/\/matsiktet\.se\/produkter\.php\?sok=gr%C3%A4dde%2040%25$/);

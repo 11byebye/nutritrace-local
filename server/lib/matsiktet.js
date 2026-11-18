@@ -109,6 +109,14 @@ const ROW_PATTERNS = [
   [/^salt\b/, 'salt'],
 ];
 
+/**
+ * A macro row has to carry its unit: the printed label always does, and OCR
+ * that dropped it ("Protein 209" where the g became a 9) would otherwise
+ * store a ten-fold error as a fact. Energy is exempt because parseEnergy
+ * already requires kcal/kJ.
+ */
+const UNIT_RE = /\d+(?:[.,]\d+)?\s*(?:g|mg)\b/i;
+
 export function nutrientFromRow(label, value) {
   const name = fold(label).replace(/\s+/g, ' ').trim();
   for (const [re, key] of ROW_PATTERNS) {
@@ -117,10 +125,34 @@ export function nutrientFromRow(label, value) {
       const e = parseEnergy(value);
       return Object.keys(e).length ? e : null;
     }
+    if (!UNIT_RE.test(String(value || ''))) return null;
     const n = parseAmount(value);
     return n == null ? null : { [key]: n };
   }
   return null;
+}
+
+/**
+ * Physical limits per 100 g/ml. A value past its ceiling is an OCR error, not
+ * a food: 100 g of protein in 100 g of anything is the whole product, and
+ * 900 kcal is already pure fat.
+ */
+const LIMITS = {
+  calories: 900, kilojoules: 3800, fat: 100, 'saturated-fat': 100,
+  carbohydrates: 100, sugars: 100, fiber: 100, proteins: 100,
+  salt: 30, alcohol: 100,
+};
+
+export function sanitizeNutrition(nutrition) {
+  const out = {};
+  for (const [k, v] of Object.entries(nutrition || {})) {
+    const n = Number(v);
+    const limit = LIMITS[k];
+    if (!Number.isFinite(n) || n < 0) continue;
+    if (limit != null && n > limit) continue;
+    out[k] = n;
+  }
+  return out;
 }
 
 /** The product page's nutrition table. Energi lands as kJ + kcal. */
@@ -286,5 +318,5 @@ export function parseLabelText(rawText) {
     if (ROW_PATTERNS.some(([re]) => re.test(fold(line)))) pending = line;
   }
   const nameLine = lines.find(l => /^[A-Za-zÅÄÖåäö]/.test(l) && !ROW_PATTERNS.some(([re]) => re.test(fold(l))) && l.length <= 60);
-  return { nutrition, name: nameLine || null };
+  return { nutrition: sanitizeNutrition(nutrition), name: nameLine || null };
 }

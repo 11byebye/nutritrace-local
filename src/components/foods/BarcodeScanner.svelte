@@ -27,10 +27,10 @@
   let scannerDiv;
   let engine = null;
   let detected = false;
-  // The label-photo path (server OCR) is hidden: on real labels it read
-  // nothing useful while "Barcode from a photo" does the job. Flip to true
-  // to bring the row back; the /api/lookup/label route is still live.
-  const SHOW_LABEL_PHOTO = false;
+  // Label photo (server OCR). Hidden for a while because a raw read turned
+  // "g" into "9"; the route now preprocesses and guards units and ranges, so
+  // the row is back — below the barcode row, which needs no such help.
+  const SHOW_LABEL_PHOTO = true;
   let selectedEngine = localStorage.getItem('wl_scanEngine') || 'zxing';
   let selectedCamId  = localStorage.getItem('wl_scanCamId')  || '';
   let cameras = [];
@@ -587,18 +587,18 @@
         />
         <button class="btn btn-primary" on:click={doManualNative}>{$_('barcode_scanner.lookup')}</button>
       </div>
+      <label class="ns-label-photo">
+        <span class="material-symbols-rounded">image</span>
+        Barcode from a photo
+        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
+      </label>
       {#if SHOW_LABEL_PHOTO}
-        <label class="ns-label-photo">
+        <label class="ns-label-photo ns-photo-second">
           <span class="material-symbols-rounded">photo_camera</span>
           Photo of the label
           <input type="file" accept="image/*" on:change={onLabelPhoto} />
         </label>
       {/if}
-      <label class="ns-label-photo ns-photo-second">
-        <span class="material-symbols-rounded">image</span>
-        Barcode from a photo
-        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
-      </label>
     </div>
   </div>
 {/if}
@@ -682,18 +682,18 @@
         />
         <button class="btn btn-primary" on:click={doManual}>{$_('barcode_scanner.lookup')}</button>
       </div>
+      <label class="scanner-label-photo">
+        <span class="material-symbols-rounded">image</span>
+        Barcode from a photo
+        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
+      </label>
       {#if SHOW_LABEL_PHOTO}
-        <label class="scanner-label-photo">
+        <label class="scanner-label-photo sc-photo-second">
           <span class="material-symbols-rounded">photo_camera</span>
           Photo of the label
           <input type="file" accept="image/*" on:change={onLabelPhoto} />
         </label>
       {/if}
-      <label class="scanner-label-photo sc-photo-second">
-        <span class="material-symbols-rounded">image</span>
-        Barcode from a photo
-        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
-      </label>
     </div>
   </div>
 {/if}

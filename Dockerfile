@@ -26,10 +26,12 @@ RUN npm run build
 # automatically during install based on the build platform.
 FROM node:20-slim
 # tesseract with the Swedish model powers the phone's label-photo lookup
-# (POST /api/lookup/label). ~30 MB; the scanner still works without it.
+# (POST /api/lookup/label); ImageMagick normalises the phone photo first
+# (grayscale, 2x, unsharp, deskew), which is what keeps "g" from reading as
+# "9". ~80 MB together; the scanner still works without either.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 build-essential \
-      tesseract-ocr tesseract-ocr-swe \
+      tesseract-ocr tesseract-ocr-swe imagemagick \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY server/package*.json ./
