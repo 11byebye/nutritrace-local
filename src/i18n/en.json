@@ -894,7 +894,6 @@
       "as_cards": "Show as cards",
       "protein_sek": "P/SEK",
       "show_food": "Food",
-      "show_drink": "Drink",
       "filters_empty": "Both filters are off — turn Food or Drink back on.",
       "pack": "Pack",
       "per_100_note": "All values per 100 g/ml",
@@ -902,7 +901,8 @@
       "tag_snacks": "Snacks",
       "tag_meat": "Meat",
       "tag_veg": "Veg",
-      "category": "Category"
+      "category": "Category",
+      "show_beverage": "Beverage"
     }
   },
   "trace": {

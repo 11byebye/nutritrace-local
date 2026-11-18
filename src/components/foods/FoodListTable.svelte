@@ -33,19 +33,18 @@
   let sortKey = 'name';
   let sortDir = 1;
 
-  // Show/hide by kind. Both on = everything, which is the default; they are
-  // filters, not a mode, so a comparison can be narrowed to drinks (wine,
-  // juice) or to food without losing the other rows.
-  let showFood = true;
-  let showDrink = true;
+  // One exclusive filter, Food by default. The chips are a selector, not a
+  // set of toggles: Food shows the whole library, a category shows only its
+  // rows. Alcohol owns its rows, so a wine never appears under Beverage.
+  let filter = 'food';
 
-  // Tag chips. A food can belong to several of these (chorizo is meat and a
-  // snack; a beer is alcohol and a drink), so they are derived tags, not the
-  // stored single category. Unknown on every tag = never hidden by them.
-  // "Sprite" contains "sprit", so every word here needs its boundaries.
+  // Alcohol is its own category, never a drink. "Sprite" contains "sprit",
+  // so every word here needs its boundaries.
+  const ALCOHOL_RE = /\bvin\b|\böl\b|\bipa\b|\blager\b|\bcider\b|\bsprit\b|whisk(e)?y|\bgin\b|\brom\b|\bvodka\b|sangria|glögg|mousserande|prosecco|champagne|cava/i;
+
+  // Snacks, Meat and Veg are multi-tag: a chorizo answers both. The filter
+  // still shows one category at a time.
   const TAG_DEFS = [
-    { key: 'alcohol', label: 'foods.list.tag_alcohol', icon: 'wine_bar',
-      re: /\bvin\b|\böl\b|\bipa\b|\blager\b|\bcider\b|\bsprit\b|whisk(e)?y|\bgin\b|\brom\b|\bvodka\b|sangria|glögg|mousserande|prosecco|champagne|cava/i },
     { key: 'snacks', label: 'foods.list.tag_snacks', icon: 'cookie',
       re: /chips|ostbåg|popcorn|jordnöt|cashew|mandel|nöt|godis|choklad|kaka\b|kakor|kex|glass|snack|salami|chark|saltad/i },
     { key: 'meat', label: 'foods.list.tag_meat', icon: 'kebab_dining',
@@ -54,9 +53,6 @@
       re: /grönsak|tomat|gurka|paprika|sallad|spenat|broccoli|blomkål|morot|lök|potatis|kål|zucchini|svamp|avokado|majs|böna|lins|kikärt|ärt|rödbeta|kålrot|purjolök|vitlök|fänkål|sparris|ingefära/i },
   ];
 
-  // Names that satisfy a tag by their stored category alone.
-  // Alcohol is never inferred from the drink category — a zero cola is a
-  // drink, not a beer.
   const TAG_CATEGORY = {
     snacks: /sötsaker|socker/i,
     meat: /kött|fågel/i,
@@ -71,7 +67,10 @@
     return String(food?.category || '');
   }
 
-  let activeTags = Object.fromEntries(TAG_DEFS.map((t) => [t.key, true]));
+  function isAlcohol(food) {
+    if (Number(food?.nutrition?.alcohol) > 0) return true;
+    return ALCOHOL_RE.test(`${food?.name || ''} ${food?.brand || ''}`);
+  }
 
   function tagsOf(food) {
     const text = `${food.name || ''} ${food.brand || ''}`;
@@ -80,8 +79,7 @@
     for (const def of TAG_DEFS) {
       const byName = def.re.test(text);
       const byCat = TAG_CATEGORY[def.key] ? TAG_CATEGORY[def.key].test(cat) : false;
-      const byNutrient = def.key === 'alcohol' && Number(food?.nutrition?.alcohol) > 0;
-      if (byName || byCat || byNutrient) out.push(def.key);
+      if (byName || byCat) out.push(def.key);
     }
     return out;
   }
@@ -90,14 +88,27 @@
   const DRINK_NAME_RE = /\b(läsk|saft|juice|vatten|dryck|cola|pepsi|sprite|fanta|kaffe|te|öl|vin|cider|must|nektar|smoothie|kombucha|mjölk|havredryck|sojadryck)\b/i;
 
   /** A drink is the Dryck category, an ml unit, or a name that says so.
-   *  All three are needed: the category misses an OFF import that has none,
-   *  ml misses a drink saved in grams, and the name catches both. */
-  function isDrink(food) {
+   *  Alcohol is excluded here on purpose: it has its own chip. */
+  function isBeverage(food) {
+    if (isAlcohol(food)) return false;
     if (DRINK_RE.test(catText(food))) return true;
     if (String(food?.unit || '').toLowerCase() === 'ml') return true;
     return DRINK_NAME_RE.test(String(food?.name || ''));
   }
 
+  const FILTERS = [
+    { key: 'food', label: 'foods.list.show_food', icon: 'restaurant' },
+    { key: 'beverage', label: 'foods.list.show_beverage', icon: 'local_drink' },
+    { key: 'alcohol', label: 'foods.list.tag_alcohol', icon: 'wine_bar' },
+    ...TAG_DEFS,
+  ];
+
+  function matches(food, key) {
+    if (key === 'food') return true;
+    if (key === 'alcohol') return isAlcohol(food);
+    if (key === 'beverage') return isBeverage(food);
+    return tagsOf(food).includes(key);
+  }
 
   // Sugar is deliberately not a column: the carb figure answers the same
   // question at a glance and the sugar value is still stored on the food.
@@ -191,11 +202,7 @@
   // a category *regardless of kind*: Alcohol lists every drink-tagged item
   // even with Drink off, and Meat/Veg/Snacks list their items even with Food
   // off. A row with no tag still follows the kind chip only.
-  $: filtered = foods.filter((f) => {
-    const drink = isDrink(f);
-    if (drink ? showDrink : showFood) return true;
-    return tagsOf(f).some((t) => activeTags[t]);
-  });
+  $: filtered = foods.filter((f) => matches(f, filter));
 
   $: sorted = (() => {
     const rows = [...filtered];
@@ -219,22 +226,12 @@
 
 <div class="listview">
   <div class="listview-bar">
-    <button type="button" class="chip" class:on={showFood}
-      aria-pressed={showFood} on:click={() => (showFood = !showFood)}>
-      <span class="material-symbols-rounded chip-icon">restaurant</span>
-      {$_('foods.list.show_food')}
-    </button>
-    <button type="button" class="chip" class:on={showDrink}
-      aria-pressed={showDrink} on:click={() => (showDrink = !showDrink)}>
-      <span class="material-symbols-rounded chip-icon">local_drink</span>
-      {$_('foods.list.show_drink')}
-    </button>
-    {#each TAG_DEFS as tag}
-      <button type="button" class="chip" class:on={activeTags[tag.key]}
-        aria-pressed={activeTags[tag.key]}
-        on:click={() => (activeTags = { ...activeTags, [tag.key]: !activeTags[tag.key] })}>
-        <span class="material-symbols-rounded chip-icon">{tag.icon}</span>
-        {$_(tag.label)}
+    {#each FILTERS as item}
+      <button type="button" class="chip" class:on={filter === item.key}
+        aria-pressed={filter === item.key}
+        on:click={() => (filter = item.key)}>
+        <span class="material-symbols-rounded chip-icon">{item.icon}</span>
+        {$_(item.label)}
       </button>
     {/each}
     <span class="listview-note">{$_('foods.list.per_100_note')}</span>
