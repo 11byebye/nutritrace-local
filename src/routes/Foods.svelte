@@ -1624,6 +1624,16 @@
     return null;
   }
 
+  /** One shop price for a name and a barcode, or null. */
+  async function _lookupPrice(code, name, brand, pack) {
+    try {
+      const params = new URLSearchParams({ code: code || '', name: name || '', brand: brand || '' });
+      if (pack) params.set('pack', String(pack));
+      const r = await NtApi.get('/api/lookup/price?' + params.toString());
+      return r?.price?.amount ? r.price : null;
+    } catch { return null; }
+  }
+
   /**
    * Attach a shop price to a food that came from another source (OFF has no
    * price and often no pack size). The server prices exact at Willys by
@@ -1632,19 +1642,46 @@
    */
   async function _attachPrice(food, code) {
     if (!food || food.price) return food;
-    try {
-      const params = new URLSearchParams({ code: code || '', name: food.name || '', brand: food.brand || '' });
-      if (food.package_weight_g) params.set('pack', String(food.package_weight_g));
-      const r = await NtApi.get('/api/lookup/price?' + params.toString());
-      if (r?.price?.amount) {
-        food.price = Number(r.price.amount);
-        if (!food.package_weight_g) {
-          const g = _packGramsClient(r.price.pack);
-          if (g) food.package_weight_g = g;
-        }
-      }
-    } catch { /* no price is a normal answer */ }
+    const price = await _lookupPrice(code, food.name, food.brand, food.package_weight_g);
+    if (!price) return food;
+    food.price = Number(price.amount);
+    if (!food.package_weight_g) {
+      const g = _packGramsClient(price.pack);
+      if (g) food.package_weight_g = g;
+    }
     return food;
+  }
+
+  /**
+   * A saved food may predate the price and pack fetchers (a receipt row, an
+   * early scan). A rescan fills only what is empty and saves it, so the row
+   * in the library stops lying about its pack and price.
+   */
+  async function _enrichLibraryFood(food, code) {
+    const needsPack = !food.package_weight_g;
+    const needsPrice = food.price == null || food.price === '';
+    if (!needsPack && !needsPrice) return food;
+    const se = await _lookupMatsiktet(code);
+    const price = needsPrice
+      ? await _lookupPrice(code, se?.found ? se.name : food.name, se?.found ? se.brand : food.brand, food.package_weight_g)
+      : null;
+    const patch = {};
+    if (needsPack) {
+      const g = se?.found ? se.package_g : _packGramsClient(price?.pack);
+      if (g) patch.package_weight_g = g;
+    }
+    if (needsPrice && price?.amount) patch.price = Number(price.amount);
+    if (!Object.keys(patch).length) return food;
+    const merged = { ...food, ...patch };
+    try {
+      const saved = await NtApi.updateFood(food.id, merged);
+      localFoods = localFoods.map(f => (f.id === food.id ? (saved || merged) : f));
+      showToast('Filled in pack and price from the shop');
+      return saved || merged;
+    } catch {
+      showToast('Filled in pack and price for this edit only');
+      return merged;
+    }
   }
 
   async function handleLabelPhoto({ detail }) {
@@ -1704,7 +1741,7 @@
       const existing = (localFoods || []).find(f => f.barcode && _normBarcode(f.barcode) === codeN);
       if (existing) {
         if (pickMode) await pickFood(existing);
-        else          openEditor(existing, 'foodList');
+        else          openEditor(await _enrichLibraryFood(existing, code), 'foodList');
         return;
       }
 

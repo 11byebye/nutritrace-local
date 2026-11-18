@@ -44,6 +44,7 @@
   import NutritionFactsBox from './NutritionFactsBox.svelte';
   import { resolveAssetUrl } from '../../lib/platform.js';
   import { Nutrition, energyUnitSuffix } from '../../lib/nutrition.js';
+  import { pricePer100g } from '../../lib/price.js';
   import { energyUnit, mealNames, disableAnimations } from '../../stores/settings.js';
   import { NtApi } from '../../lib/api.js';
   import { confirmDialog } from '../../stores/confirmDialog.js';
@@ -99,6 +100,20 @@
   $: servingDescription = _displayFood
     ? _formatServing(_displayFood)
     : $_('foods.detail.per_serving');
+
+  // Local fork: the pack and its price, the two numbers a scan now fills.
+  // Kept here as well as in the editor because a scanned food lands on this
+  // sheet, and a price nobody can see reads as "no price".
+  const _sek = (n, digits = 2) => Number(n).toFixed(digits).replace('.', ',');
+  $: _packG = Number(_displayFood?.package_weight_g) > 0 ? Number(_displayFood.package_weight_g) : null;
+  $: _packLabel = _packG
+    ? (_packG >= 1000 ? `${String(_packG / 1000).replace('.', ',')} kg` : `${_sek(_packG, 0)} g`)
+    : null;
+  $: _price = Number(_displayFood?.price) > 0 ? Number(_displayFood.price) : null;
+  $: _pp100 = _price && _packG ? pricePer100g({ price: _price, package_weight_g: _packG }) : null;
+  $: _priceLabel = _price
+    ? `${_sek(_price)} kr${_pp100 != null ? ` · ${_sek(_pp100)} kr/100 g` : ''}`
+    : null;
 
   function _formatServing(f) {
     const p = Number(f.portion);
@@ -222,6 +237,18 @@
             {#if energyChip}
               <span class="pill">{energyChip}</span>
             {/if}
+            {#if _packLabel}
+              <span class="pill" title="Package size">
+                <span class="material-symbols-rounded">inventory_2</span>
+                {_packLabel}
+              </span>
+            {/if}
+            {#if _priceLabel}
+              <span class="pill" title="Shelf price">
+                <span class="material-symbols-rounded">sell</span>
+                {_priceLabel}
+              </span>
+            {/if}
             {#if _displayFood.barcode}
               <span class="pill subtle" title={$_('foods.detail.barcode')}>
                 <span class="material-symbols-rounded">barcode_scanner</span>
@@ -304,6 +331,18 @@
           <div class="meta-pills">
             {#if energyChip}
               <span class="pill">{energyChip}</span>
+            {/if}
+            {#if _packLabel}
+              <span class="pill" title="Package size">
+                <span class="material-symbols-rounded">inventory_2</span>
+                {_packLabel}
+              </span>
+            {/if}
+            {#if _priceLabel}
+              <span class="pill" title="Shelf price">
+                <span class="material-symbols-rounded">sell</span>
+                {_priceLabel}
+              </span>
             {/if}
             {#if _displayFood.barcode}
               <span class="pill subtle" title={$_('foods.detail.barcode')}>
