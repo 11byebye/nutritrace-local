@@ -327,6 +327,47 @@
     dispatch('labelphoto', { file });
   }
 
+  // Barcode from a photo in storage: a pack shot taken earlier, or a label
+  // nobody wants to hold steady under the live camera. Decoded on the phone
+  // with the same ZXing build the camera uses, so nothing is uploaded.
+  async function onBarcodePhoto(e) {
+    const file = e?.currentTarget?.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    status = 'Reading the photo…';
+    const url = URL.createObjectURL(file);
+    try {
+      await _loadBarcodeLibs();
+      const Z = window.ZXing;
+      let reader;
+      try {
+        const hints = new Map();
+        hints.set(Z.DecodeHintType.TRY_HARDER, true);
+        hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
+          Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8,
+          Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E,
+          Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39,
+          Z.BarcodeFormat.ITF, Z.BarcodeFormat.QR_CODE,
+        ]);
+        reader = new Z.BrowserMultiFormatReader(hints);
+      } catch {
+        reader = new Z.BrowserMultiFormatReader();
+      }
+      const result = await reader.decodeFromImageUrl(url);
+      const code = result?.getText?.() || result?.text || '';
+      try { reader.reset?.(); } catch { /* noop */ }
+      if (!code) throw new Error('no barcode');
+      detected = true;
+      close();
+      dispatch('scan', { code });
+    } catch {
+      status = 'No barcode found in that photo';
+      dispatch('photoerror', { message: 'No barcode found in that photo — try a closer, straight shot' });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   async function startScanner() {
     detected = false;
     scanning = true;
@@ -540,7 +581,12 @@
       <label class="ns-label-photo">
         <span class="material-symbols-rounded">photo_camera</span>
         Photo of the label
-        <input type="file" accept="image/*" capture="environment" on:change={onLabelPhoto} />
+        <input type="file" accept="image/*" on:change={onLabelPhoto} />
+      </label>
+      <label class="ns-label-photo ns-photo-second">
+        <span class="material-symbols-rounded">image</span>
+        Barcode from a photo
+        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
       </label>
     </div>
   </div>
@@ -628,7 +674,12 @@
       <label class="scanner-label-photo">
         <span class="material-symbols-rounded">photo_camera</span>
         Photo of the label
-        <input type="file" accept="image/*" capture="environment" on:change={onLabelPhoto} />
+        <input type="file" accept="image/*" on:change={onLabelPhoto} />
+      </label>
+      <label class="scanner-label-photo sc-photo-second">
+        <span class="material-symbols-rounded">image</span>
+        Barcode from a photo
+        <input type="file" accept="image/*" on:change={onBarcodePhoto} />
       </label>
     </div>
   </div>
@@ -813,6 +864,7 @@
   .scanner-label-photo:hover, .ns-label-photo:hover { background: var(--surface-3); color: var(--text-1); }
   .scanner-label-photo .material-symbols-rounded, .ns-label-photo .material-symbols-rounded { font-size: 18px; }
   .scanner-label-photo input, .ns-label-photo input { display: none; }
+  .sc-photo-second, .ns-photo-second { border-top: none; padding-top: 6px; }
 
   /* Native ML Kit scanner overlay (bundled, no Play Services) — camera
      renders BEHIND the WebView. We just draw chrome on top. */

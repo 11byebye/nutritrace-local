@@ -3060,7 +3060,9 @@
   {/if}
 </Sheet>
 
-<BarcodeScanner bind:open={scannerOpen} on:scan={handleScan} on:labelphoto={handleLabelPhoto} on:close={() => scannerOpen = false} />
+<BarcodeScanner bind:open={scannerOpen} on:scan={handleScan} on:labelphoto={handleLabelPhoto}
+  on:photoerror={(e) => showError(e.detail?.message || 'No barcode found in that photo')}
+  on:close={() => scannerOpen = false} />
 
 <!-- Barcode-lookup loading overlay. Deferred reveal (see _armScanIndicator
      above) means fast lookups don't flash this UI; only lookups that run
