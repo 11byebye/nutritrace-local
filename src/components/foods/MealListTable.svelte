@@ -8,8 +8,9 @@
    * batch is never compared as one serving.
    *
    * A meal whose ingredients are only partly priced shows the sum of the
-   * priced ones; the cell's title says so, and no marker or legend takes up
-   * the bar (user 2026-11-19: the explainer goes).
+   * priced ones and a trailing `*`; the legend text stayed off the page
+   * (user 2026-11-19: keep the marker, drop the explainer), so the cell's
+   * title carries the words.
    */
   import { _ } from 'svelte-i18n';
   import { Nutrition } from '../../lib/nutrition.js';
@@ -27,12 +28,12 @@
   let sortDir = 1;
 
   const COLUMNS = [
+    { key: 'weight', label: 'foods.list.weight', align: 'right' },
     { key: 'name', label: 'foods.list.name', align: 'left' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
-    { key: 'weight', label: 'foods.list.total_weight', align: 'right' },
     { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
@@ -77,6 +78,12 @@
     return `${Math.round(value)} g`;
   }
 
+  function priceCell(value, partial) {
+    const text = money(value);
+    if (!text) return '';
+    return partial ? `${text} *` : text;
+  }
+
   function money(value) {
     if (value == null) return '';
     return value.toFixed(2).replace('.', ',');
@@ -94,9 +101,6 @@
 </script>
 
 <div class="listview">
-  <div class="listview-bar">
-    <span class="listview-count">{sorted.length} / {foods.length}</span>
-  </div>
   <div class="listview-scroll">
     <table class="food-table">
       <thead>
@@ -127,6 +131,7 @@
           <tr class="food-row" class:marked={_sel} tabindex="0" role="button"
             on:click={() => activate(food)}
             on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(food); } }}>
+            <td class="col-weight right">{grams(r.totalGrams)}</td>
             <td class="col-name">
               <span class="cell-name">{food.name}</span>
               {#if food._shared_by}
@@ -137,8 +142,7 @@
             <td class="col-proteins right">{show(r.proteins)}</td>
             <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
             <td class="col-fat right">{show(r.fat)}</td>
-            <td class="col-weight right">{grams(r.totalGrams)}</td>
-            <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{money(r.totalCost)}</td>
+            <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{priceCell(r.totalCost, r.partial)}</td>
             <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{proteinSek(r.proteinPerSek)}</td>
           </tr>
         {/each}
@@ -148,20 +152,13 @@
 </div>
 
 <style>
-  .listview { display: flex; flex-direction: column; gap: 8px; }
+  .listview { display: flex; flex-direction: column; }
   .listview-scroll {
     overflow-x: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--surface-1);
   }
-  .listview-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .listview-count { margin-left: auto; font-size: 11px; color: var(--text-3); }
   .empty-row td { text-align: center; color: var(--text-3); padding: 18px 10px; }
   .food-table {
     width: 100%;
@@ -222,9 +219,19 @@
     .food-table { font-size: 12px; }
     thead th, td { padding: 6px 7px; }
     .col-name { min-width: 150px; }
-    th.col-name, td.col-name {
+    /* Weight sits first, so both it and the name stay put: two pinned cells
+       with the weight's width fixed, and the name pinned right after it. */
+    .col-weight { width: 4.6rem; min-width: 4.6rem; }
+    th.col-weight, td.col-weight {
       position: sticky;
       left: 0;
+      z-index: 3;
+      background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+    }
+    th.col-weight { background: color-mix(in srgb, var(--accent) 14%, var(--surface-1)); }
+    th.col-name, td.col-name {
+      position: sticky;
+      left: 4.6rem;
       z-index: 2;
       background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
       box-shadow: 1px 0 0 var(--border), 3px 0 8px -4px rgba(0, 0, 0, 0.35);
