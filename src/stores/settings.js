@@ -670,7 +670,7 @@ export const cropPhotos             = createSettingStore('cropPhotos',          
 // OFF search is enabled by default — it's the public crowd-sourced food
 // database and the primary search source. Users who don't want their queries
 // hitting OFF servers (privacy / offline-first) can disable it.
-export const offEnabled             = createSettingStore('offEnabled',             true);
+export const offEnabled             = createSettingStore('offEnabled',             false);
 export const offSearchLanguage      = createSettingStore('offSearchLanguage',      'en');
 export const offSearchCountry       = createSettingStore('offSearchCountry',       'World');
 export const offUploadCountry       = createSettingStore('offUploadCountry',       'Auto');

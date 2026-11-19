@@ -19,7 +19,7 @@
   import { takePhoto } from '../lib/camera.js';
   import { isNative } from '../lib/platform.js';
   import BarcodeScanner from '../components/foods/BarcodeScanner.svelte';
-  import { foodsShowNotes, foodCategories, visibleNutriments, nutrimentsOrder, customNutriments, cropPhotos, offUsername, offPassword, offUploadCountry, aiEffectivelyEnabled, envLocks, aiProvider, aiApiKey, aiModel, aiBaseUrl, energyUnit, showUnitMetadata, warnUnitMismatch, catName as _catName, disableAnimations } from '../stores/settings.js';
+  import { foodsShowNotes, foodCategories, visibleNutriments, nutrimentsOrder, customNutriments, cropPhotos, offEnabled, offUsername, offPassword, offUploadCountry, aiEffectivelyEnabled, envLocks, aiProvider, aiApiKey, aiModel, aiBaseUrl, energyUnit, showUnitMetadata, warnUnitMismatch, catName as _catName, disableAnimations } from '../stores/settings.js';
   import { callAI, callAIProxy } from '../lib/aiChat.js';
   import { fitImageDataUrl } from '../lib/image-fit.js';
   import { draftKey as _mkDraftKey, loadDraft, loadDraftImg, clearDraft, makeDebouncedPersist, sweepDrafts } from '../lib/editor-draft.js';
@@ -247,6 +247,9 @@
       showSuccess('Filled from the Swedish catalogue');
       return;
     }
+    // OFF is optional and the user turned it off (2026-11-19): stop here with
+    // copy that names the catalogue that was actually asked.
+    if (!$offEnabled) { showInfo($_('food_editor.toast.not_in_swedish')); return; }
     // Re-use the existing smart-fill that only writes empty fields.
     await downloadFromOFF();
   }
@@ -1025,7 +1028,7 @@
             }}>Open existing →</button>
           </div>
         {/if}
-        {#if hasBarcode}
+        {#if hasBarcode && $offEnabled}
           <div class="form-row" style="gap:8px;margin-top:8px">
             <button class="btn btn-secondary" style="flex:1"
               on:click={shareOrViewOnOFF} disabled={contributing}>

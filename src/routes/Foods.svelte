@@ -117,6 +117,19 @@
   // 'all' (issue #96) is prepended once there are >= 2 sources so the option
   // is only offered when it actually merges something. Fires everything in
   // parallel and shows results grouped by source with per-row source badges.
+  // The shared source is named after its owner when there is exactly one.
+  // Here that owner is the `livsmedelsverket` reference account, so the chip
+  // reads "Livsmedelsverket" instead of a vague "From Others" (user
+  // 2026-11-19: "'Others' is basically Livsmedelsverket? if so, rename it").
+  $: _sharedOwners = [...new Set(
+    [...groupFoods, ...groupMeals, ...groupRecipes]
+      .map((x) => x._shared_by)
+      .filter(Boolean),
+  )];
+  $: _sharedLabel = _sharedOwners.length === 1
+    ? _sharedOwners[0]
+    : $_('foods.sources.from_others');
+
   $: _perSourceOptions = [
     { value: 'local',  label: $_('foods.sources.local')  },
     ...(activeTab === 0 ? [{ value: 'matsiktet', label: 'Matsiktet' }] : []),
@@ -128,7 +141,7 @@
     // source values keep the results arrays and pick handlers separate.
     ...(activeTab === 0 && _cooktraceEnabled ? [{ value: 'ctpantry', label: 'CookTrace' }] : []),
     ...(activeTab === 2 && _cooktraceEnabled ? [{ value: 'cooktrace', label: 'CookTrace' }] : []),
-    ...(_tabHasShared  ? [{ value: 'shared', label: $_('foods.sources.from_others') }] : []),
+    ...(_tabHasShared  ? [{ value: 'shared', label: _sharedLabel }] : []),
   ];
   $: availableSources = _perSourceOptions.length >= 2
     ? [{ value: 'all', label: $_('foods.sources.all') }, ..._perSourceOptions]
