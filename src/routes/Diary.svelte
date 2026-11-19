@@ -502,15 +502,15 @@
 
   // Meal visual identity (icon + accent color per meal slot)
   // Icons are now computed per meal name via mealIcon(); colors cycle for any number of meals
-  // Meals cycle the accent at five strengths (2026-11-19: one gradient hue,
-  // not ten unrelated ones). Mixed toward the text colour so every step
-  // stays legible on both themes.
+  // Meals step along the chosen accent gradient (2026-11-19): the accent,
+  // a blend, the gradient's second colour, then the same two taken toward
+  // the page background. Five clearly divided stops, one hue family.
   const MEAL_COLORS = [
     'var(--accent)',
-    'color-mix(in srgb, var(--accent) 85%, var(--text-1))',
-    'color-mix(in srgb, var(--accent) 70%, var(--text-1))',
-    'color-mix(in srgb, var(--accent) 55%, var(--text-1))',
-    'color-mix(in srgb, var(--accent) 40%, var(--text-1))',
+    'color-mix(in srgb, var(--accent) 50%, var(--accent-2))',
+    'var(--accent-2)',
+    'color-mix(in srgb, var(--accent-2) 55%, var(--bg))',
+    'color-mix(in srgb, var(--accent) 40%, var(--bg))',
   ];
   const mealColor = i => MEAL_COLORS[i % MEAL_COLORS.length];
 
