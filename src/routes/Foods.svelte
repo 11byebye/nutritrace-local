@@ -64,17 +64,11 @@
   // falls back to Foods.
   let activeTab = Math.max(0, TABS.findIndex((t) => t.value === $foodsTab));
   $: if (TABS[activeTab]) foodsTab.set(TABS[activeTab].value);
-  // Meal type chips (Meals and Recipes): no chip marked shows every row, and
-  // marking one shows only that type (2026-11-19). '' = no filter.
-  const MEAL_TYPES = ['breakfast', 'cooked', 'other'];
-  let mealTypeFilter = '';
-
   // Reset source + category filter when switching tabs (not when searchSource itself changes)
   let _prevTab = activeTab;
   $: if (activeTab !== _prevTab) {
     _prevTab = activeTab;
     activeCategoryFilter = '';
-    mealTypeFilter = '';
     // Re-poll sharing counts so the From Others filter appears for the new
     // tab's category if a peer just shared something.
     refreshSharingStatus();
@@ -816,15 +810,9 @@
   $: filteredBySearch = search
     ? displayList.filter(f => _fuzzyMatch(f, search))
     : displayList;
-  // A meal type narrows only the local/shared meal lists; an external source
-  // (CookTrace on Recipes) has no type and must not be filtered to nothing.
-  $: mealTypeApplies = activeTab !== 0 && !!mealTypeFilter
-    && (searchSource === 'local' || searchSource === 'shared');
-  $: filteredList = mealTypeApplies
-    ? filteredBySearch.filter(f => (f.meal_type || '') === mealTypeFilter)
-    : activeCategoryFilter
-      ? filteredBySearch.filter(f => (f.categories||[]).includes(activeCategoryFilter))
-      : filteredBySearch;
+  $: filteredList = activeCategoryFilter
+    ? filteredBySearch.filter(f => (f.categories||[]).includes(activeCategoryFilter))
+    : filteredBySearch;
 
   // Returns a NEW sorted array. Don't mutate in-place: under Svelte 5
   // compat mode the reactive cascade (_ownList → displayList → filteredList)
@@ -2110,12 +2098,6 @@
       <button class="cat-chip" class:active={activeCategoryFilter === _catName(cat)}
         on:click={() => activeCategoryFilter = activeCategoryFilter === _catName(cat) ? '' : _catName(cat)}>{$foodsShowLabels ? _catDisplay(cat) : _catName(cat)}</button>
     {/each}
-  {:else if activeTab !== 0 && (searchSource === 'local' || searchSource === 'shared')}
-    {#each MEAL_TYPES as t}
-      <button class="cat-chip" class:active={mealTypeFilter === t}
-        aria-pressed={mealTypeFilter === t}
-        on:click={() => mealTypeFilter = mealTypeFilter === t ? '' : t}>{$_(`meal_type.${t}`)}</button>
-    {/each}
   {/if}
 {/snippet}
 
@@ -2249,14 +2231,13 @@
           {@render sourceChips()}
         </div>
       {/if}
-      {#if (activeTab === 0 && searchSource === 'local' && $foodsShowCategories && $foodCategories && $foodCategories.length > 0)
-        || (activeTab !== 0 && (searchSource === 'local' || searchSource === 'shared'))}
-        <p class="foods-filter-heading">{activeTab === 0 ? 'Categories' : $_('meal_type.title')}</p>
+      {#if activeTab === 0 && searchSource === 'local' && $foodsShowCategories && $foodCategories && $foodCategories.length > 0}
+        <p class="foods-filter-heading">Categories</p>
         <div class="foods-rail-chips foods-rail-cats">
           {@render catChips()}
         </div>
       {/if}
-      {#if availableSources.length <= 1 && !(activeTab === 0 && searchSource === 'local' && $foodsShowCategories && $foodCategories && $foodCategories.length > 0) && activeTab === 0}
+      {#if availableSources.length <= 1 && !(activeTab === 0 && searchSource === 'local' && $foodsShowCategories && $foodCategories && $foodCategories.length > 0)}
         <!-- Rail would be empty otherwise — leave a low-key hint so
              the column doesn't render as a mysteriously-empty box. -->
         <p class="foods-filter-empty">No filters available for this tab.</p>

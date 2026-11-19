@@ -27,6 +27,16 @@
   let sortKey = 'name';
   let sortDir = 1;
 
+  // The type filter lives in the table bar, with the same chip markup and
+  // classes as the Foods table's chips: no chip marked shows every row, and
+  // marking one shows only that type (tap it again to clear).
+  const TYPE_CHIPS = [
+    { key: 'breakfast', icon: 'breakfast_dining' },
+    { key: 'cooked', icon: 'dinner_dining' },
+    { key: 'other', icon: 'more_horiz' },
+  ];
+  let typeFilter = '';
+
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
     { key: 'weight', label: 'foods.list.weight', align: 'right' },
@@ -38,7 +48,9 @@
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
 
-  $: rows = foods.map((food) => ({ food, r: mealRollup(food) }));
+  $: rows = foods
+    .filter((food) => !typeFilter || (food.meal_type || '') === typeFilter)
+    .map((food) => ({ food, r: mealRollup(food) }));
 
   function sortBy(key) {
     if (sortKey === key) sortDir = -sortDir;
@@ -101,6 +113,16 @@
 </script>
 
 <div class="listview">
+  <div class="listview-bar">
+    {#each TYPE_CHIPS as t}
+      <button type="button" class="chip" class:on={typeFilter === t.key}
+        aria-pressed={typeFilter === t.key}
+        on:click={() => (typeFilter = typeFilter === t.key ? '' : t.key)}>
+        <span class="material-symbols-rounded chip-icon">{t.icon}</span>
+        {$_(`meal_type.${t.key}`)}
+      </button>
+    {/each}
+  </div>
   <div class="listview-scroll">
     <table class="food-table">
       <thead>
@@ -152,7 +174,31 @@
 </div>
 
 <style>
-  .listview { display: flex; flex-direction: column; }
+  .listview { display: flex; flex-direction: column; gap: 8px; }
+  .listview-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .chip.on {
+    background: var(--accent-dim);
+    border-color: transparent;
+    color: var(--accent);
+  }
+  .chip-icon { font-size: 15px; }
   .listview-scroll {
     overflow-x: auto;
     border: 1px solid var(--border);
@@ -219,6 +265,7 @@
     .food-table { font-size: 12px; }
     thead th, td { padding: 6px 7px; }
     .col-name { min-width: 150px; }
+    .chip { padding: 4px 9px; font-size: 11px; }
     th.col-name, td.col-name {
       position: sticky;
       left: 0;
