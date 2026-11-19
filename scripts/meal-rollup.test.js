@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mealRollup } from '../src/lib/meal-rollup.js';
+import { mealRollup, totalGrams } from '../src/lib/meal-rollup.js';
 
 const chicken = {
   name: 'Kycklingfilé', portion: 200, unit: 'g', quantity: 1,
@@ -83,4 +83,13 @@ test('a meal without stored nutrition is derived from items, per serving', () =>
   assert.equal(r.hasNutrition, true);
   assert.equal(r.calories, 100);
   assert.equal(r.proteins, 10);
+});
+
+test('total weight is the batch: per-serving portion times yields, or the items', () => {
+  assert.equal(totalGrams({
+    is_recipe: true, portion: 150, unit: 'g', servings: 4, items: [chicken, rice],
+  }), 600);
+  assert.equal(totalGrams({ is_recipe: false, servings: 1, items: [chicken, rice] }), 300);
+  assert.equal(totalGrams({ is_recipe: true, portion: null, servings: 2, items: [chicken, rice] }), 300);
+  assert.equal(totalGrams({ is_recipe: false, items: [] }), null);
 });

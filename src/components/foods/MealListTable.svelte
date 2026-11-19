@@ -32,6 +32,7 @@
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
+    { key: 'weight', label: 'foods.list.total_weight', align: 'right' },
     { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
@@ -48,6 +49,7 @@
 
   function sortValue(row, key) {
     if (key === 'name') return String(row.food.name || '').toLowerCase();
+    if (key === 'weight') return row.r.totalGrams ?? -1;
     return row.r[key] ?? -1;
   }
 
@@ -68,6 +70,11 @@
     if (value == null) return '';
     if (Number.isInteger(value)) return String(value);
     return value.toFixed(digits).replace('.', ',');
+  }
+
+  function grams(value) {
+    if (value == null) return '';
+    return `${Math.round(value)} g`;
   }
 
   function money(value) {
@@ -130,6 +137,7 @@
             <td class="col-proteins right">{show(r.proteins)}</td>
             <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
             <td class="col-fat right">{show(r.fat)}</td>
+            <td class="col-weight right">{grams(r.totalGrams)}</td>
             <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{money(r.totalCost)}</td>
             <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{proteinSek(r.proteinPerSek)}</td>
           </tr>

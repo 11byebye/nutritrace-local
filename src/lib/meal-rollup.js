@@ -21,6 +21,30 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const TO_G = { g: 1, ml: 1, oz: 28.349523125, lb: 453.59237, cup: 240, tbsp: 15, tsp: 5, piece: 100, serving: 100 };
+
+/** Grams in the whole meal or recipe. A recipe stores its per-serving
+ *  portion, so the batch is that times the yields; a plain meal stores
+ *  nothing of its own, so its weight is the ingredients summed. */
+export function totalGrams(meal) {
+  const items = Array.isArray(meal?.items) ? meal.items : [];
+  const itemSum = items.reduce((sum, it) => {
+    const qty = num(it?.quantity) || 1;
+    const portion = num(it?.portion) || 0;
+    return sum + portion * qty * (TO_G[String(it?.unit || 'g').toLowerCase()] ?? 1);
+  }, 0);
+
+  if (meal?.is_recipe) {
+    const portion = num(meal?.portion);
+    if (portion > 0) {
+      const unit = String(meal.unit || 'g').toLowerCase();
+      const servings = Math.max(1, parseInt(meal?.servings, 10) || 1);
+      return portion * (TO_G[unit] ?? 1) * servings;
+    }
+  }
+  return itemSum > 0 ? itemSum : null;
+}
+
 /** Per-serving macros, batch cost and protein per krona for one meal row. */
 export function mealRollup(meal) {
   const items = Array.isArray(meal?.items) ? meal.items : [];
@@ -65,6 +89,7 @@ export function mealRollup(meal) {
     proteins,
     carbohydrates: num(nutrition.carbohydrates),
     fat: num(nutrition.fat),
+    totalGrams: totalGrams(meal),
     totalCost,
     costPerServing,
     partial,
