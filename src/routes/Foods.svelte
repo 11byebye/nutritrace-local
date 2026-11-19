@@ -32,6 +32,7 @@
   import { itemSourceRef } from '../lib/item-source.js';
   import { offCountryTagToFlag, offCountryTagToName } from '../lib/off-country-flag.js';
   import FoodListTable from '../components/foods/FoodListTable.svelte';
+  import MealListTable from '../components/foods/MealListTable.svelte';
   import { foodsListView } from '../stores/settings.js';
   import { foodsShowThumbnails, foodsShowCategories, foodsShowLabels, foodsShowNotes, foodsSort, mealsSort, recipesSort, foodCategories, foodsShowYesterdayMeals, foodsYesterdayCollapsed, foodsSavedCollapsed, mealNames, usdaEnabled, usdaApiKey, offEnabled, offSearchCountry, offSearchLanguage, foodsDefaultSource, diaryDefaultField, catName as _catName, catDisplay as _catDisplay, pageBanners, bannerStyle, energyUnit } from '../stores/settings.js';
   import { mealIcon } from '../lib/mealIcon.js';
@@ -2171,7 +2172,7 @@
     <!-- Beside the pill, not inside it: .btn-scan-inline is absolutely
          positioned at right:5px, so a second one would hide behind the scan
          button (2026-11-17: the toggle was invisible for exactly that). -->
-    {#if activeTab === 0 && searchSource !== 'all'}
+    {#if searchSource !== 'all'}
       <button class="btn-icon list-toggle" class:accent={$foodsListView}
         on:click={() => foodsListView.set(!$foodsListView)}
         aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
@@ -2491,14 +2492,25 @@
         {@const _renderList = (search || activeCategoryFilter)
           ? filteredList
           : [...filteredList.filter(f => f.favorite), ...filteredList.filter(f => !f.favorite)]}
-        {#if $foodsListView && activeTab === 0 && !manageMode}
-          <FoodListTable
-            foods={_renderList}
-            {pickMode}
-            {selectedFoods}
-            onPick={pickFood}
-            onSelect={toggleSelect}
-          />
+        {#if $foodsListView && !manageMode}
+          {#if activeTab === 0}
+            <FoodListTable
+              foods={_renderList}
+              {pickMode}
+              {selectedFoods}
+              onPick={pickFood}
+              onSelect={toggleSelect}
+            />
+          {:else}
+            <MealListTable
+              foods={_renderList}
+              isRecipe={activeTab === 2}
+              {pickMode}
+              {selectedFoods}
+              onPick={pickFood}
+              onSelect={toggleSelect}
+            />
+          {/if}
         {:else}
         <ul class="food-list">
           {#each _renderList as food (food.id)}

@@ -904,7 +904,14 @@
       "category": "Category",
       "show_beverage": "Beverage",
       "bought": "Bought",
-      "bought_hint": "Only foods from a receipt or made in the app — not store lookups or reference copies"
+      "bought_hint": "Only foods from a receipt or made in the app — not store lookups or reference copies",
+      "items": "Items",
+      "serving": "Serving",
+      "price_serving": "SEK/serving",
+      "per_serving_note": "All values per serving",
+      "partial_note": "* some ingredients have no price, the total is a floor",
+      "empty_meals": "No meals yet",
+      "empty_recipes": "No recipes yet"
     }
   },
   "trace": {
