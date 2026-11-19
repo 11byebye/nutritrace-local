@@ -35,7 +35,7 @@ export const USER_PREFS = new Set([
   'diaryDefaultField',
   'diaryShowActivity','manualActivityPolicy','activityAutoEstimate','calorieAdjustFromActivity',
   'showQuickCalories','quickCaloriesDisplay',
-  'foodsShowCategories','foodsShowLabels','foodsShowNotes','foodsShowThumbnails','foodsListView',
+  'foodsShowCategories','foodsShowLabels','foodsShowNotes','foodsShowThumbnails','foodsListView','mealsListView',
   'foodsShowYesterdayMeals','foodsYesterdayCollapsed','foodsSavedCollapsed','foodsSort','mealsSort','recipesSort',
   'foodsDefaultSource',
   'updateCheckInterval', // hours between checks: 1, 4, 12, 24, or 0 for manual only
@@ -631,6 +631,10 @@ export const foodsShowThumbnails    = createSettingStore('foodsShowThumbnails', 
 // per-100 view for choosing between foods; cards stay the phone and
 // "what did I eat" shape.
 export const foodsListView          = createSettingStore('foodsListView',          true);
+// Meals and Recipes tabs: their own switch, defaulting to the table. They were
+// riding the Foods key until 2026-11-19, so a user who had turned Foods back to
+// cards silently got cards here too ("make list the default meal view").
+export const mealsListView          = createSettingStore('mealsListView',          true);
 export const foodsShowYesterdayMeals= createSettingStore('foodsShowYesterdayMeals',true);
 // Foods → Meals tab: per-section collapse state (only takes effect when both Yesterday and Saved
 // sections are visible — i.e. yesterday has items + user is in pick mode). Default expanded.

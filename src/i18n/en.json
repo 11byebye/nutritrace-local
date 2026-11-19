@@ -905,8 +905,7 @@
       "show_beverage": "Beverage",
       "bought": "Bought",
       "bought_hint": "Only foods from a receipt or made in the app — not store lookups or reference copies",
-      "per_serving_note": "All values per serving",
-      "partial_note": "* some ingredients have no price, the total is a floor",
+      "partial_note": "Some ingredients have no price, so the total covers only the priced ones",
       "empty_meals": "No meals yet",
       "empty_recipes": "No recipes yet"
     }

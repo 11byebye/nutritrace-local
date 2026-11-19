@@ -33,7 +33,7 @@
   import { offCountryTagToFlag, offCountryTagToName } from '../lib/off-country-flag.js';
   import FoodListTable from '../components/foods/FoodListTable.svelte';
   import MealListTable from '../components/foods/MealListTable.svelte';
-  import { foodsListView } from '../stores/settings.js';
+  import { foodsListView, mealsListView } from '../stores/settings.js';
   import { foodsShowThumbnails, foodsShowCategories, foodsShowLabels, foodsShowNotes, foodsSort, mealsSort, recipesSort, foodCategories, foodsShowYesterdayMeals, foodsYesterdayCollapsed, foodsSavedCollapsed, mealNames, usdaEnabled, usdaApiKey, offEnabled, offSearchCountry, offSearchLanguage, foodsDefaultSource, diaryDefaultField, catName as _catName, catDisplay as _catDisplay, pageBanners, bannerStyle, energyUnit } from '../stores/settings.js';
   import { mealIcon } from '../lib/mealIcon.js';
   import { focusDefaultField } from '../lib/default-field.js';
@@ -618,6 +618,9 @@
     return `${Math.round(total)}g`;
   }
 
+  // The table switch is per tab group: Foods keeps its own key, Meals and
+  // Recipes share one (2026-11-19).
+  $: tableOn = activeTab === 0 ? $foodsListView : $mealsListView;
   $: currentStore = TABS[activeTab].value;
   $: _ownList = activeTab === 0 ? localFoods : activeTab === 1 ? localMeals : localRecipes;
   $: _groupList = activeTab === 0 ? groupFoods : activeTab === 1 ? groupMeals : groupRecipes;
@@ -2173,11 +2176,13 @@
          positioned at right:5px, so a second one would hide behind the scan
          button (2026-11-17: the toggle was invisible for exactly that). -->
     {#if searchSource !== 'all'}
-      <button class="btn-icon list-toggle" class:accent={$foodsListView}
-        on:click={() => foodsListView.set(!$foodsListView)}
-        aria-label={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
-        title={$foodsListView ? $_('foods.list.as_cards') : $_('foods.list.as_table')}>
-        <span class="material-symbols-rounded">{$foodsListView ? 'view_agenda' : 'table_rows'}</span>
+      <button class="btn-icon list-toggle" class:accent={tableOn}
+        on:click={() => activeTab === 0
+          ? foodsListView.set(!$foodsListView)
+          : mealsListView.set(!$mealsListView)}
+        aria-label={tableOn ? $_('foods.list.as_cards') : $_('foods.list.as_table')}
+        title={tableOn ? $_('foods.list.as_cards') : $_('foods.list.as_table')}>
+        <span class="material-symbols-rounded">{tableOn ? 'view_agenda' : 'table_rows'}</span>
       </button>
     {/if}
   </div>
@@ -2492,7 +2497,7 @@
         {@const _renderList = (search || activeCategoryFilter)
           ? filteredList
           : [...filteredList.filter(f => f.favorite), ...filteredList.filter(f => !f.favorite)]}
-        {#if $foodsListView && !manageMode}
+        {#if tableOn && !manageMode}
           {#if activeTab === 0}
             <FoodListTable
               foods={_renderList}

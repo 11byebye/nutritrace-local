@@ -7,9 +7,9 @@
    * nutrition, money from the ingredient price snapshots, so a recipe's whole
    * batch is never compared as one serving.
    *
-   * A meal whose ingredients are only partly priced shows the floor with a
-   * trailing `*`, and its P/SEK stays blank: protein per krona measured
-   * against a partial cost would overstate it.
+   * A meal whose ingredients are only partly priced shows the sum of the
+   * priced ones; the cell's title says so, and no marker or legend takes up
+   * the bar (user 2026-11-19: the explainer goes).
    */
   import { _ } from 'svelte-i18n';
   import { Nutrition } from '../../lib/nutrition.js';
@@ -64,8 +64,6 @@
     return list;
   })();
 
-  $: anyPartial = rows.some((row) => row.r.partial);
-
   function show(value, digits = 1) {
     if (value == null) return '';
     if (Number.isInteger(value)) return String(value);
@@ -82,12 +80,6 @@
     return (value < 1 ? value.toFixed(2) : value.toFixed(1)).replace('.', ',');
   }
 
-  function priceCell(value, partial) {
-    const text = money(value);
-    if (!text) return '';
-    return partial ? `${text} *` : text;
-  }
-
   function activate(food) {
     if (pickMode) onSelect(food);
     else onPick(food);
@@ -96,10 +88,6 @@
 
 <div class="listview">
   <div class="listview-bar">
-    <span class="listview-note">{$_('foods.list.per_serving_note')}</span>
-    {#if anyPartial}
-      <span class="listview-note">{$_('foods.list.partial_note')}</span>
-    {/if}
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
   <div class="listview-scroll">
@@ -142,8 +130,8 @@
             <td class="col-proteins right">{show(r.proteins)}</td>
             <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
             <td class="col-fat right">{show(r.fat)}</td>
-            <td class="col-price right">{priceCell(r.totalCost, r.partial)}</td>
-            <td class="col-protein_sek right">{r.partial ? '' : proteinSek(r.proteinPerSek)}</td>
+            <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{money(r.totalCost)}</td>
+            <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{proteinSek(r.proteinPerSek)}</td>
           </tr>
         {/each}
       </tbody>
@@ -237,5 +225,4 @@
   }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
-  .listview-note { font-size: 11px; color: var(--text-3); }
 </style>
