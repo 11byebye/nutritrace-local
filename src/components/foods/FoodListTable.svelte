@@ -53,22 +53,30 @@
   // so every word here needs its boundaries.
   const ALCOHOL_RE = /\bvin\b|\böl\b|\bipa\b|\blager\b|\bcider\b|\bsprit\b|whisk(e)?y|\bgin\b|\brom\b|\bvodka\b|sangria|glögg|mousserande|prosecco|champagne|cava/i;
 
-  // Snacks, Meat and Veg are multi-tag: a chorizo answers both. The filter
-  // still shows one category at a time.
+  // Snacks, Meat, Fish and Veg. The stored category decides when there is
+  // one; only an untagged row falls back to name words (2026-11-19, user:
+  // "kebabsås and a lot of products that ARE NOT meat are still showing when
+  // selecting MEAT"). Category-first is why "Kebabsås" (Kryddor) and
+  // "Fiskfilé" (Fisk) never reach Meat.
   const TAG_DEFS = [
     { key: 'snacks', label: 'foods.list.tag_snacks', icon: 'cookie',
-      re: /chips|ostbåg|popcorn|jordnöt|cashew|mandel|nöt|godis|choklad|kaka\b|kakor|kex|glass|snack|salami|chark|saltad/i },
+      cat: /socker|sötsak|glass|godis|choklad|snack/i,
+      re: /chips|ostbåg|popcorn|jordnöt|cashew|mandel|\bnöt|godis|choklad|kaka\b|kakor|kex|glass|snack|salami|chark|saltad/i },
     { key: 'meat', label: 'foods.list.tag_meat', icon: 'kebab_dining',
-      re: /kyckling|fläsk|nöt\b|nötkött|kött|färs|bacon|skinka|korv|salami|kalkon|lamm|kalv|kebab|hamburgare|biff|filé|fransyska|fläskytterfilé/i },
+      cat: /kött|fågel/i,
+      re: /\bkyckling|\bfläsk|\bnötkött|\bkött|\bfärs\b|\bbacon|\bskinka|\bkorv\b|\bsalami|\bkalkon|\blamm\b|\bkalv\b|\bkebab|\bhamburgare|\bbiff\b|\bfilé\b|\bfransyska|köttfärs|nötfärs|fläskfärs/i },
+    { key: 'fish', label: 'foods.list.tag_fish', icon: 'set_meal',
+      cat: /fisk|skaldjur/i,
+      re: /\bfisk|torsk|makrill|\blax\b|\bsill\b|tonfisk|räkor|kräftor|krabba|mussla|skaldjur|sardine?r|forell|abborre|gädda|hälleflundra|sej\b|sik\b/i },
     { key: 'veg', label: 'foods.list.tag_veg', icon: 'eco',
-      re: /grönsak|tomat|gurka|paprika|sallad|spenat|broccoli|blomkål|morot|lök|potatis|kål|zucchini|svamp|avokado|majs|böna|lins|kikärt|ärt|rödbeta|kålrot|purjolök|vitlök|fänkål|sparris|ingefära/i },
+      cat: /grönsak|rotfrukt|potatis/i,
+      re: /grönsak|tomat|gurka|paprika|spenat|broccoli|blomkål|morot|\blök|potatis|kål|zucchini|svamp|avokado|majs|böna|lins|kikärt|\bärt|rödbeta|kålrot|purjolök|vitlök|fänkål|sparris|ingefära/i },
   ];
 
-  const TAG_CATEGORY = {
-    snacks: /sötsaker|socker/i,
-    meat: /kött|fågel/i,
-    veg: /grönsak|rotfrukt/i,
-  };
+  // A fish word beats a meat word, and a sauce or a composite dish beats
+  // both, so a fallback row cannot be filed by a word that only rides along.
+  const FISH_WORD_RE = /\bfisk|torsk|makrill|\blax\b|\bsill\b|tonfisk|räkor|skaldjur|sardine?r/i;
+  const GUARD_RE = /\bsås\b|dressing|ketchup|majonnäs|\bolja\b|buljong|sallad|baguette|bagel|wrap|pizza|paj\b|smörgås/i;
 
   /** The API maps `category` to a one-element `categories` array; the scalar
    *  is gone by the time a food reaches this table. */
@@ -84,13 +92,23 @@
   }
 
   function tagsOf(food) {
-    const text = `${food.name || ''} ${food.brand || ''}`;
     const cat = catText(food);
     const out = [];
+    if (cat) {
+      // Category first, and it is the only voice: a row's shelf is what it is.
+      for (const def of TAG_DEFS) if (def.cat.test(cat)) out.push(def.key);
+      return out;
+    }
+    // Untagged (store lookups and phone saves): names, with guards. A fish
+    // word wins, and a sauce or a composite dish suppresses the meat tag.
+    const text = `${food.name || ''} ${food.brand || ''}`;
+    const fish = FISH_WORD_RE.test(text);
+    const guarded = GUARD_RE.test(text);
     for (const def of TAG_DEFS) {
-      const byName = def.re.test(text);
-      const byCat = TAG_CATEGORY[def.key] ? TAG_CATEGORY[def.key].test(cat) : false;
-      if (byName || byCat) out.push(def.key);
+      if (!def.re.test(text)) continue;
+      if (def.key === 'meat' && (fish || guarded)) continue;
+      if (def.key === 'fish' && !fish) continue;
+      out.push(def.key);
     }
     return out;
   }
