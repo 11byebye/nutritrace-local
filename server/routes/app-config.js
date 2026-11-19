@@ -113,11 +113,30 @@ router.get('/sharing', requireAuth, wrap((req, res) => {
   const cfgRow = key => db.prepare('SELECT value FROM app_config WHERE key = ?').get(key)?.value || null;
   const parseUserIds = v => { try { return JSON.parse(v) || []; } catch { return []; } };
 
+  // Who those visible rows belong to, so the UI can name the source instead of
+  // guessing. Here that is the `livsmedelsverket` reference account, and the
+  // shared chip reads its name (user 2026-11-19).
+  const owners = db.prepare(`
+    SELECT DISTINCT u2.id, COALESCE(NULLIF(u2.full_name, ''), u2.username) AS name
+    FROM users u2
+    WHERE u2.id != ?
+      AND (
+        EXISTS (SELECT 1 FROM foods f WHERE f.user_id = u2.id AND f.visibility = 'group' AND f.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM foods f JOIN food_shares fs ON fs.food_id = f.id AND fs.user_id = ?
+                   WHERE f.user_id = u2.id AND f.visibility = 'specific' AND f.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM meals m WHERE m.user_id = u2.id AND m.visibility = 'group' AND m.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM meals m JOIN meal_shares ms ON ms.meal_id = m.id AND ms.user_id = ?
+                   WHERE m.user_id = u2.id AND m.visibility = 'specific' AND m.deleted_at IS NULL)
+      )
+    ORDER BY name
+  `).all(u, u, u);
+
   res.json({
     sharing_enabled: true,
     foods:   countVisible('foods', 'food_shares', 'food_id'),
     meals:   countVisible('meals', 'meal_shares', 'meal_id', 'AND t.is_recipe = 0'),
     recipes: countVisible('meals', 'meal_shares', 'meal_id', 'AND t.is_recipe = 1'),
+    owners,
     bulk: {
       foods:   { visibility: cfgRow('bulk_vis_foods')   || 'private', user_ids: parseUserIds(cfgRow('bulk_users_foods'))   },
       meals:   { visibility: cfgRow('bulk_vis_meals')   || 'private', user_ids: parseUserIds(cfgRow('bulk_users_meals'))   },

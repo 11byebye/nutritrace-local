@@ -121,11 +121,13 @@
   // Here that owner is the `livsmedelsverket` reference account, so the chip
   // reads "Livsmedelsverket" instead of a vague "From Others" (user
   // 2026-11-19: "'Others' is basically Livsmedelsverket? if so, rename it").
-  $: _sharedOwners = [...new Set(
-    [...groupFoods, ...groupMeals, ...groupRecipes]
-      .map((x) => x._shared_by)
-      .filter(Boolean),
-  )];
+  $: _sharedOwners = sharedOwners.length
+    ? sharedOwners
+    : [...new Set(
+        [...groupFoods, ...groupMeals, ...groupRecipes]
+          .map((x) => x._shared_by)
+          .filter(Boolean),
+      )];
   $: _sharedLabel = _sharedOwners.length === 1
     ? _sharedOwners[0]
     : $_('foods.sources.from_others');
@@ -378,11 +380,15 @@
   // Sharing — "From Others" source filter (per-category)
   let sharingEnabled = false;
   let sharedCounts = { foods: 0, meals: 0, recipes: 0 };
+  let sharedOwners = [];
   $: _tabHasShared = activeTab === 0 ? sharedCounts.foods > 0 : activeTab === 1 ? sharedCounts.meals > 0 : sharedCounts.recipes > 0;
   function refreshSharingStatus() {
     NtApi.getSharingStatus().then(s => {
       sharingEnabled = s.sharing_enabled === true;
       sharedCounts = { foods: s.foods || 0, meals: s.meals || 0, recipes: s.recipes || 0 };
+      // The server names the accounts behind those rows, so the chip is right
+      // on first paint rather than after the group catalogue loads.
+      sharedOwners = Array.isArray(s.owners) ? s.owners.map(o => o.name).filter(Boolean) : [];
     }).catch(() => {});
   }
   let groupFoods = [];
