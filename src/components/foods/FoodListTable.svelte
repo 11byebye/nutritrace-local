@@ -114,15 +114,21 @@
   }
 
   const DRINK_RE = /dryck|drink|beverage/i;
-  const DRINK_NAME_RE = /\b(läsk|saft|juice|vatten|dryck|cola|pepsi|sprite|fanta|kaffe|te|öl|vin|cider|must|nektar|smoothie|kombucha|mjölk|havredryck|sojadryck)\b/i;
+  const DRINK_NAME_RE = /\b(läsk|saft|juice|dryck|cola|pepsi|sprite|fanta|kaffe|te|öl|vin|cider|must|nektar|smoothie|kombucha|mjölk|havredryck|sojadryck)\b/i;
 
-  /** A drink is the Dryck category, an ml unit, or a name that says so.
-   *  Alcohol is excluded here on purpose: it has its own chip. */
+  /** A drink is the Dryck category, an ml unit, or (for an untagged row) a
+   *  name that says so. Alcohol has its own chip and is excluded here.
+   *  A category that is not Dryck wins over the name list: "Tonfisk i vatten"
+   *  is Fish, not a beverage (user 2026-11-19). */
   function isBeverage(food) {
     if (isAlcohol(food)) return false;
-    if (DRINK_RE.test(catText(food))) return true;
+    const cat = catText(food);
+    if (DRINK_RE.test(cat)) return true;
     if (String(food?.unit || '').toLowerCase() === 'ml') return true;
-    return DRINK_NAME_RE.test(String(food?.name || ''));
+    if (cat) return false;
+    const name = String(food?.name || '').trim();
+    if (/^vatten$/i.test(name)) return true;
+    return DRINK_NAME_RE.test(name);
   }
 
   // Bought is orthogonal to the category chips: it narrows whatever category
@@ -290,8 +296,6 @@
       <option value="most">{$_('foods.list.sort_most')}</option>
       <option value="recent">{$_('foods.list.sort_recent')}</option>
     </select>
-    <span class="listview-note">{$_('foods.list.per_100_note')}</span>
-    <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
   <div class="listview-scroll">
     <table class="food-table">
@@ -393,7 +397,6 @@
     font-size: 12px;
     cursor: pointer;
   }
-  .listview-count { margin-left: auto; font-size: 11px; color: var(--text-3); }
   .empty-row td { text-align: center; color: var(--text-3); padding: 18px 10px; }
   .food-table {
     width: 100%;
@@ -478,6 +481,5 @@
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
   .col-package_g { color: var(--text-2); white-space: nowrap; }
-  .listview-note { font-size: 11px; color: var(--text-3); }
   .fav { font-size: 13px; color: var(--accent); }
 </style>

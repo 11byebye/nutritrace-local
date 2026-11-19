@@ -909,8 +909,8 @@
       "partial_note": "Some ingredients have no price, so the total covers only the priced ones",
       "sort_mode": "Sort order",
       "sort_alpha": "A–Ö",
-      "sort_most": "Most used",
-      "sort_recent": "Recently used",
+      "sort_most": "Common",
+      "sort_recent": "Recent",
       "weight": "Weight",
       "empty_meals": "No meals yet",
       "empty_recipes": "No recipes yet"
