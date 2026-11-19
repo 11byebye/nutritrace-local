@@ -20,7 +20,7 @@
   import { showSuccess, showError } from '../stores/toast.js';
   import { editorState, clearMealEditorState } from '../stores/editorState.js';
   import { Nutrition, NUTRIMENTS } from '../lib/nutrition.js';
-  import { foodsShowCategories, foodsShowLabels, foodsShowNotes, foodCategories, cropPhotos, visibleNutriments, nutrimentsOrder, catName as _catName, catDisplay as _catDisplay, energyUnit, foodsSort, mealsSort, recipesSort, offEnabled, usdaEnabled, usdaApiKey } from '../stores/settings.js';
+  import { foodsShowNotes, cropPhotos, visibleNutriments, nutrimentsOrder, energyUnit, foodsSort, mealsSort, recipesSort, offEnabled, usdaEnabled, usdaApiKey } from '../stores/settings.js';
   import { fitImageDataUrl } from '../lib/image-fit.js';
   import { draftKey as _mkDraftKey, loadDraft, loadDraftImg, clearDraft, makeDebouncedPersist, sweepDrafts } from '../lib/editor-draft.js';
   import { decimalInput, parseDecimal } from '../lib/decimal-input.js';
@@ -29,7 +29,7 @@
 
   export let params = {};
 
-  let meal   = { name: '', notes: '', categories: [], items: [], imgUrl: '' };
+  let meal   = { name: '', notes: '', categories: [], items: [], imgUrl: '', meal_type: null };
   let store  = 'meals';
   let saving = false;
   let isRecipe = false;
@@ -812,15 +812,12 @@
     ? Number(totals.proteins) / _totalCost
     : null;
 
-  // ── Category chips ─────────────────────────────────────────────────────────
-  function toggleCat(cat) {
-    const name = _catName(cat);
-    const cats = meal.categories || [];
-    if (cats.includes(name)) {
-      meal = { ...meal, categories: cats.filter(c => c !== name) };
-    } else {
-      meal = { ...meal, categories: [...cats, name] };
-    }
+  // Meal type (2026-11-19): breakfast, cooked or other, one at a time. Tapping
+  // the selected one clears it, so untagged stays reachable without a fourth
+  // chip. This is the value the Meals list filters on.
+  const MEAL_TYPES = ['breakfast', 'cooked', 'other'];
+  function setMealType(value) {
+    meal = { ...meal, meal_type: meal.meal_type === value ? null : value };
   }
 
   // Read-only when this meal/recipe is owned by another user (shared with us).
@@ -1153,23 +1150,23 @@
     {/if}
 
 
-    <!-- Categories -->
-    {#if $foodsShowCategories && $foodCategories && $foodCategories.length > 0}
-      <div class="card editor-card">
-        <div class="editor-card-title">{$_('meal_editor.card_categories')}</div>
-        <div class="cat-chips">
-          {#each $foodCategories as cat}
-            <button class="chip" class:accent={(meal.categories||[]).includes(_catName(cat))}
-              on:click={() => toggleCat(cat)}>
-              {#if (meal.categories||[]).includes(_catName(cat))}
-                <span class="material-symbols-rounded" style="font-size:14px">check</span>
-              {/if}
-              {$foodsShowLabels ? _catDisplay(cat) : _catName(cat)}
-            </button>
-          {/each}
-        </div>
+    <!-- Type: what this meal is, for the Meals list filter. The old category
+         chips wrote meal.categories, which the server never stored. -->
+    <div class="card editor-card">
+      <div class="editor-card-title">{$_('meal_type.title')}</div>
+      <div class="cat-chips">
+        {#each MEAL_TYPES as t}
+          <button class="chip" class:accent={meal.meal_type === t}
+            on:click={() => setMealType(t)}
+            aria-pressed={meal.meal_type === t}>
+            {#if meal.meal_type === t}
+              <span class="material-symbols-rounded" style="font-size:14px">check</span>
+            {/if}
+            {$_(`meal_type.${t}`)}
+          </button>
+        {/each}
       </div>
-    {/if}
+    </div>
 
     <!-- Notes -->
     {#if $foodsShowNotes}

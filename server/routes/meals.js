@@ -16,6 +16,11 @@ router.use(requireAuth);
 
 const uid = req => userMgmtActive() ? req.user.id : null;
 
+// Meal type for the Meals list filter. Breakfast, cooked and other are the
+// only values; anything else (including a stale client) lands as NULL.
+const MEAL_TYPES = new Set(['breakfast', 'cooked', 'other']);
+const cleanMealType = (v) => (MEAL_TYPES.has(String(v)) ? String(v) : null);
+
 const canRead = (meal, u) => _canRead(meal, u, 'meal_shares', 'meal_id');
 
 // ── GET / ─────────────────────────────────────────────────────────────────
@@ -61,7 +66,7 @@ router.get('/:id', wrap((req, res) => {
 // ── POST / ────────────────────────────────────────────────────────────────
 router.post('/', wrap(async (req, res) => {
   const { name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, source_id,
-          source_app, source_external_id, source_url, import_warnings } = req.body;
+          source_app, source_external_id, source_url, import_warnings, meal_type } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
   const u = uid(req);
   // Sent again (a retry, or the answer was lost): the meal made the first time.
@@ -112,24 +117,24 @@ router.post('/', wrap(async (req, res) => {
     if (existing) {
       db.prepare(
         `UPDATE meals SET name=?, nutrition=?, items=?, img_url=?, notes=?, is_recipe=?, portion=?, unit=?, servings=?, visibility=?,
-                          source_url=?, import_warnings=?, updated_at=datetime('now') WHERE id=?`
+                          source_url=?, import_warnings=?, meal_type=?, updated_at=datetime('now') WHERE id=?`
       ).run(name, JSON.stringify(nutrition || {}), JSON.stringify(items || []),
         localImg, notes || null, is_recipe ? 1 : 0, portion ?? 100, unit || 'g',
         servings != null ? Math.max(1, parseInt(servings) || 1) : null,
-        vis, cleanSourceUrl, warningsCol, existing.id);
+        vis, cleanSourceUrl, warningsCol, cleanMealType(meal_type), existing.id);
       return res.status(200).json(parse(db.prepare('SELECT * FROM meals WHERE id = ?').get(existing.id)));
     }
   }
 
   const result = db.prepare(
     `INSERT INTO meals (user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, source_id,
-                        source_app, source_external_id, source_url, import_warnings, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+                        source_app, source_external_id, source_url, import_warnings, meal_type, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(u, name, JSON.stringify(nutrition || {}), JSON.stringify(items || []),
     localImg, notes || null, is_recipe ? 1 : 0, portion ?? 100, unit || 'g',
     servings != null ? Math.max(1, parseInt(servings) || 1) : null,
     vis, source_id || null,
-    cleanSourceApp, cleanSourceExtId, cleanSourceUrl, warningsCol);
+    cleanSourceApp, cleanSourceExtId, cleanSourceUrl, warningsCol, cleanMealType(meal_type));
   setCreateKey('meals', result.lastInsertRowid, createKey);
   res.status(201).json(parse(db.prepare('SELECT * FROM meals WHERE id = ?').get(result.lastInsertRowid)));
 }));
@@ -140,7 +145,7 @@ router.put('/:id', wrap(async (req, res) => {
   const existing = db.prepare('SELECT * FROM meals WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   if (u != null && existing.user_id !== u) return res.status(403).json({ error: 'Forbidden' });
-  const { name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, favorite } = req.body;
+  const { name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, favorite, meal_type } = req.body;
   const fav = favorite != null ? (favorite ? 1 : 0) : existing.favorite;
   // Body explicitly set servings → take it (null clears, number clamps to >=1).
   // Body omitted servings entirely → preserve the existing row value (null stays null).
@@ -153,16 +158,18 @@ router.put('/:id', wrap(async (req, res) => {
   // silently failed to clear the photo on save. Parallel to the foods.js
   // PUT fix for kilkalabs's report on #74 follow-up. Localize supplied
   // images just as POST does, so the diary can resolve edited recipe photos.
+  // Omitted keeps the row's value; an explicit null/'' clears the type.
+  const mealType = 'meal_type' in req.body ? cleanMealType(meal_type) : existing.meal_type;
   const img = 'img_url' in req.body
     ? ((img_url && isExternalUrl(img_url)) ? await localizeImage(img_url, { allowPrivate: ownerOrOptIn(req, 'ALLOW_PRIVATE_IMAGE_URLS') }) : (img_url || null))
     : existing.img_url;
   db.prepare(
-    `UPDATE meals SET name=?, nutrition=?, items=?, img_url=?, notes=?, is_recipe=?, portion=?, unit=?, servings=?, visibility=?, favorite=?, updated_at=datetime('now') WHERE id=?`
+    `UPDATE meals SET name=?, nutrition=?, items=?, img_url=?, notes=?, is_recipe=?, portion=?, unit=?, servings=?, visibility=?, favorite=?, meal_type=?, updated_at=datetime('now') WHERE id=?`
   ).run(name ?? existing.name, JSON.stringify(nutrition ?? JSON.parse(existing.nutrition || '{}')),
     JSON.stringify(items ?? JSON.parse(existing.items || '[]')), img,
     notes ?? existing.notes, is_recipe != null ? (is_recipe ? 1 : 0) : existing.is_recipe,
     portion ?? existing.portion, unit ?? existing.unit, srv,
-    visibility ?? existing.visibility, fav, req.params.id);
+    visibility ?? existing.visibility, fav, mealType, req.params.id);
   res.json(parse(db.prepare('SELECT * FROM meals WHERE id = ?').get(req.params.id)));
 }));
 
@@ -267,10 +274,10 @@ router.post('/:id/copy', wrap((req, res) => {
   }
 
   const result = db.prepare(
-    `INSERT INTO meals (user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, visibility, source_id, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'private', ?, datetime('now'))`
+    `INSERT INTO meals (user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, visibility, source_id, meal_type, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'private', ?, ?, datetime('now'))`
   ).run(u, meal.name, meal.nutrition, meal.items, meal.img_url, meal.notes,
-    meal.is_recipe, meal.portion, meal.unit, meal.id);
+    meal.is_recipe, meal.portion, meal.unit, meal.id, meal.meal_type || null);
   res.status(201).json(parse(db.prepare('SELECT * FROM meals WHERE id = ?').get(result.lastInsertRowid)));
 }));
 

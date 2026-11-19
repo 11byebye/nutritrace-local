@@ -229,13 +229,13 @@ function restoreFromZip(zip) {
     // meals row now. Restoring without them silently drops the "From
     // CookTrace" badge and the deep-link back to the source on restore.
     const insMeal = db.prepare(`
-      INSERT OR IGNORE INTO meals (id, user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, source_id, favorite, usage_count, last_used_at, source_app, source_external_id, source_url, import_warnings, created_at, updated_at, deleted_at)
-      VALUES (@id, @user_id, @name, @nutrition, @items, @img_url, @notes, @is_recipe, @portion, @unit, @servings, @visibility, @source_id, @favorite, @usage_count, @last_used_at, @source_app, @source_external_id, @source_url, @import_warnings, @created_at, COALESCE(@updated_at, datetime('now')), @deleted_at)
+      INSERT OR IGNORE INTO meals (id, user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, visibility, source_id, favorite, usage_count, last_used_at, source_app, source_external_id, source_url, import_warnings, meal_type, created_at, updated_at, deleted_at)
+      VALUES (@id, @user_id, @name, @nutrition, @items, @img_url, @notes, @is_recipe, @portion, @unit, @servings, @visibility, @source_id, @favorite, @usage_count, @last_used_at, @source_app, @source_external_id, @source_url, @import_warnings, @meal_type, @created_at, COALESCE(@updated_at, datetime('now')), @deleted_at)
     `);
     for (const m of data.meals || []) insMeal.run({
       visibility: 'private', source_id: null, favorite: 0, usage_count: 0, last_used_at: null,
       source_app: null, source_external_id: null, source_url: null, import_warnings: null,
-      updated_at: null, deleted_at: null, servings: null, ...m,
+      updated_at: null, deleted_at: null, servings: null, meal_type: null, ...m,
     });
 
     const insFoodShare = db.prepare(`INSERT OR IGNORE INTO food_shares (food_id, user_id) VALUES (@food_id, @user_id)`);

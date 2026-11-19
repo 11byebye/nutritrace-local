@@ -853,6 +853,12 @@ if (!columnExists('meals', 'last_used_at')) {
   db.exec(`ALTER TABLE meals ADD COLUMN last_used_at TEXT DEFAULT NULL`);
   _favColumnsAdded = true;
 }
+// Meal type for the list filter (2026-11-19): 'breakfast' | 'cooked' |
+// 'other', NULL when the user has not chosen. Additive and nullable, so an
+// older image simply ignores it.
+if (!columnExists('meals', 'meal_type')) {
+  db.exec(`ALTER TABLE meals ADD COLUMN meal_type TEXT DEFAULT NULL`);
+}
 if (_favColumnsAdded) {
   try {
     const n1 = _backfillUsage('foods');

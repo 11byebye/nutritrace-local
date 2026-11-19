@@ -911,6 +911,12 @@
       "empty_recipes": "No recipes yet"
     }
   },
+  "meal_type": {
+    "title": "Type",
+    "breakfast": "Frukost",
+    "cooked": "Cooked",
+    "other": "Other"
+  },
   "trace": {
     "food_card": {
       "log_to": "Log to",

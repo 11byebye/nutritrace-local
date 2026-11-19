@@ -19,6 +19,10 @@ import { isServerOnlyKey } from '../lib/server-only-keys.js';
 import { localizeImage, isExternalUrl } from '../lib/image-localizer.js';
 import { mirrorWeightToBodyStats } from '../lib/wellness-mirror.js';
 import { cleanCreateKey, findByCreateKey, setCreateKey } from '../lib/create-keys.js';
+
+// Same three values as routes/meals.js; a push carrying anything else is
+// stored as untagged rather than trusted.
+const _mealType = (v) => (['breakfast', 'cooked', 'other'].includes(v) ? v : null);
 import { clientClock, parseUtc, pushWins as clockPushWins, editStamp, resolveNote } from '../lib/sync-clock.js';
 
 // #199 (@tellis82): the POST /api/foods and POST /api/meals routes
@@ -370,11 +374,12 @@ router.post('/push', wrap(async (req, res) => {
             db.prepare(`UPDATE meals SET deleted_at = datetime('now'), updated_at = ? WHERE id = ?`).run(stamp(m.updated_at, existing), m.server_id);
           } else {
             db.prepare(
-              `UPDATE meals SET name=?, nutrition=?, items=?, img_url=?, notes=?, is_recipe=?, portion=?, unit=?, servings=?, favorite=?, usage_count=MAX(usage_count, ?), last_used_at=MAX(COALESCE(last_used_at, ''), COALESCE(?, '')), updated_at=? WHERE id=?`
+              `UPDATE meals SET name=?, nutrition=?, items=?, img_url=?, notes=?, is_recipe=?, portion=?, unit=?, servings=?, favorite=?, usage_count=MAX(usage_count, ?), last_used_at=MAX(COALESCE(last_used_at, ''), COALESCE(?, '')), meal_type=?, updated_at=? WHERE id=?`
             ).run(m.name, JSON.stringify(m.nutrition || {}), JSON.stringify(m.items || []),
               m.img_url || null, m.notes || null, m.is_recipe ? 1 : 0, m.portion ?? 100, m.unit || 'g',
               m.servings != null ? Math.max(1, parseInt(m.servings) || 1) : null,
-              m.favorite ? 1 : 0, m.usage_count || 0, m.last_used_at || null, stamp(m.updated_at, existing), m.server_id);
+              m.favorite ? 1 : 0, m.usage_count || 0, m.last_used_at || null,
+              _mealType(m.meal_type), stamp(m.updated_at, existing), m.server_id);
           }
           result.meals.push({ client_id: m.client_id, server_id: m.server_id });
         } else if (_ownsRow(existing, u)) {
@@ -391,13 +396,13 @@ router.post('/push', wrap(async (req, res) => {
         if (mMade) { result.meals.push({ client_id: m.client_id, server_id: mMade.id }); continue; }
         const vis = resolveNewItemVisibility(u);
         const r = db.prepare(
-          `INSERT INTO meals (user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, favorite, usage_count, last_used_at, visibility, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          `INSERT INTO meals (user_id, name, nutrition, items, img_url, notes, is_recipe, portion, unit, servings, favorite, usage_count, last_used_at, visibility, meal_type, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
         ).run(u, m.name, JSON.stringify(m.nutrition || {}), JSON.stringify(m.items || []),
           m.img_url || null, m.notes || null, m.is_recipe ? 1 : 0, m.portion ?? 100, m.unit || 'g',
           Math.max(1, parseInt(m.servings) || 1),
           m.favorite ? 1 : 0, m.usage_count || 0, m.last_used_at || null,
-          vis);
+          vis, _mealType(m.meal_type));
         setCreateKey('meals', r.lastInsertRowid, mKey);
         result.meals.push({ client_id: m.client_id, server_id: r.lastInsertRowid });
       }
