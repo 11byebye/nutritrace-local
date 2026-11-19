@@ -41,7 +41,7 @@
      and each follows whatever accent theme is chosen. */
   --macro-fat:      var(--accent);
   --macro-carbs:    color-mix(in srgb, var(--accent) 45%, #ffffff);
-  --macro-protein:  color-mix(in srgb, var(--accent) 45%, #000000);
+  --macro-protein:  color-mix(in srgb, var(--accent) 68%, #000000);
   --macro-calories: var(--accent);
   --macro-fat-dim:      color-mix(in srgb, var(--accent) 15%, transparent);
   --macro-carbs-dim:    color-mix(in srgb, var(--accent) 15%, transparent);
@@ -86,7 +86,7 @@
 
   --macro-fat:      var(--accent);
   --macro-carbs:    color-mix(in srgb, var(--accent) 88%, #000000);
-  --macro-protein:  color-mix(in srgb, var(--accent) 42%, #000000);
+  --macro-protein:  color-mix(in srgb, var(--accent) 58%, #000000);
   --macro-calories: var(--accent);
   --macro-fat-dim:      color-mix(in srgb, var(--accent) 15%, transparent);
   --macro-carbs-dim:    color-mix(in srgb, var(--accent) 15%, transparent);
