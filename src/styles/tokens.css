@@ -35,18 +35,18 @@
   --danger:        #FF5C5C;
   --info:          #4FC3F7;
 
-  /* Monochrome macro ramp (2026-11-19): one accent gradient, three clear
-     steps. Fat is the accent, carbs the gradient's second colour, protein
-     that colour taken toward the page background, so the arcs divide at a
-     glance and still follow the chosen accent theme. */
+  /* Macro ramp (2026-11-19): solid nuances of the one accent hue, no
+     second hue and no gradient fill. Fat is the accent, carbs a lighter
+     step, protein a deeper one, so the three read apart on both themes,
+     and each follows whatever accent theme is chosen. */
   --macro-fat:      var(--accent);
-  --macro-carbs:    var(--accent-2);
-  --macro-protein:  color-mix(in srgb, var(--accent-2) 55%, var(--bg));
+  --macro-carbs:    color-mix(in srgb, var(--accent) 65%, #ffffff);
+  --macro-protein:  color-mix(in srgb, var(--accent) 60%, #000000);
   --macro-calories: var(--accent);
-  --macro-fat-dim:      color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-carbs-dim:    color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-protein-dim:  color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-calories-dim: color-mix(in srgb, var(--accent-2) 15%, transparent);
+  --macro-fat-dim:      color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-carbs-dim:    color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-protein-dim:  color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-calories-dim: color-mix(in srgb, var(--accent) 15%, transparent);
   --shadow-sm:     0 1px  3px rgba(0,0,0,0.4);
   --shadow-md:     0 4px 12px rgba(0,0,0,0.5);
   --shadow-lg:     0 8px 32px rgba(0,0,0,0.6);
@@ -85,13 +85,13 @@
   --info:          #0277BD;
 
   --macro-fat:      var(--accent);
-  --macro-carbs:    var(--accent-2);
-  --macro-protein:  color-mix(in srgb, var(--accent-2) 55%, var(--bg));
+  --macro-carbs:    color-mix(in srgb, var(--accent) 78%, #000000);
+  --macro-protein:  color-mix(in srgb, var(--accent) 55%, #000000);
   --macro-calories: var(--accent);
-  --macro-fat-dim:      color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-carbs-dim:    color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-protein-dim:  color-mix(in srgb, var(--accent-2) 15%, transparent);
-  --macro-calories-dim: color-mix(in srgb, var(--accent-2) 15%, transparent);
+  --macro-fat-dim:      color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-carbs-dim:    color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-protein-dim:  color-mix(in srgb, var(--accent) 15%, transparent);
+  --macro-calories-dim: color-mix(in srgb, var(--accent) 15%, transparent);
 
   --shadow-sm:     0 1px  3px rgba(0,0,0,0.10);
   --shadow-md:     0 4px 12px rgba(0,0,0,0.12);

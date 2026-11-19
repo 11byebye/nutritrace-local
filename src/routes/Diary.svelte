@@ -502,15 +502,15 @@
 
   // Meal visual identity (icon + accent color per meal slot)
   // Icons are now computed per meal name via mealIcon(); colors cycle for any number of meals
-  // Meals step along the chosen accent gradient (2026-11-19): the accent,
-  // a blend, the gradient's second colour, then the same two taken toward
-  // the page background. Five clearly divided stops, one hue family.
+  // Meal identities are solid nuances of the accent hue (2026-11-19), not
+  // gradients and not a second colour: two lighter steps, the accent, two
+  // deeper ones.
   const MEAL_COLORS = [
     'var(--accent)',
-    'color-mix(in srgb, var(--accent) 50%, var(--accent-2))',
-    'var(--accent-2)',
-    'color-mix(in srgb, var(--accent-2) 55%, var(--bg))',
-    'color-mix(in srgb, var(--accent) 40%, var(--bg))',
+    'color-mix(in srgb, var(--accent) 80%, #ffffff)',
+    'color-mix(in srgb, var(--accent) 55%, #ffffff)',
+    'color-mix(in srgb, var(--accent) 75%, #000000)',
+    'color-mix(in srgb, var(--accent) 50%, #000000)',
   ];
   const mealColor = i => MEAL_COLORS[i % MEAL_COLORS.length];
 
@@ -4786,9 +4786,10 @@
     background: var(--surface-3); overflow: hidden;
     display: flex; margin-bottom: 6px;
   }
-  .mmb-p { background: linear-gradient(90deg, #BA68C8, var(--macro-protein)); }
-  .mmb-c { background: linear-gradient(90deg, #00E676, var(--macro-carbs)); }
-  .mmb-f { background: linear-gradient(90deg, var(--macro-fat), var(--warning)); }
+  /* Solid, one hue: the ramp is the accent's nuances, never a gradient. */
+  .mmb-p { background: var(--macro-protein); }
+  .mmb-c { background: var(--macro-carbs); }
+  .mmb-f { background: var(--macro-fat); }
   .meal-macro-text { display: block; }
 
   /* Nutrition bar (inside bottom bar) */
@@ -4825,7 +4826,7 @@
   }
   .dbb-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--macro-calories), #FF8F00);
+    background: var(--macro-calories);
     transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
   }
   .dbb-progress-fill.celebrating {
@@ -4839,9 +4840,9 @@
     overflow: hidden;
     cursor: pointer;
   }
-  .dbb-mb-p { background: linear-gradient(90deg, #BA68C8, var(--macro-protein)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
-  .dbb-mb-c { background: linear-gradient(90deg, #00E676, var(--macro-carbs)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
-  .dbb-mb-f { background: linear-gradient(90deg, var(--macro-fat), var(--warning)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-p { background: var(--macro-protein); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-c { background: var(--macro-carbs); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-f { background: var(--macro-fat); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
   /* Text summary row button */
   .dbb-summary-row {
     display: flex;
