@@ -28,8 +28,8 @@
   let sortDir = 1;
 
   const COLUMNS = [
-    { key: 'weight', label: 'foods.list.weight', align: 'right' },
     { key: 'name', label: 'foods.list.name', align: 'left' },
+    { key: 'weight', label: 'foods.list.weight', align: 'right' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
@@ -131,13 +131,13 @@
           <tr class="food-row" class:marked={_sel} tabindex="0" role="button"
             on:click={() => activate(food)}
             on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(food); } }}>
-            <td class="col-weight right">{grams(r.totalGrams)}</td>
             <td class="col-name">
               <span class="cell-name">{food.name}</span>
               {#if food._shared_by}
                 <span class="cell-brand">by {food._shared_by}</span>
               {/if}
             </td>
+            <td class="col-weight right">{grams(r.totalGrams)}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
             <td class="col-proteins right">{show(r.proteins)}</td>
             <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
@@ -219,19 +219,9 @@
     .food-table { font-size: 12px; }
     thead th, td { padding: 6px 7px; }
     .col-name { min-width: 150px; }
-    /* Weight sits first, so both it and the name stay put: two pinned cells
-       with the weight's width fixed, and the name pinned right after it. */
-    .col-weight { width: 4.6rem; min-width: 4.6rem; }
-    th.col-weight, td.col-weight {
-      position: sticky;
-      left: 0;
-      z-index: 3;
-      background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
-    }
-    th.col-weight { background: color-mix(in srgb, var(--accent) 14%, var(--surface-1)); }
     th.col-name, td.col-name {
       position: sticky;
-      left: 4.6rem;
+      left: 0;
       z-index: 2;
       background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
       box-shadow: 1px 0 0 var(--border), 3px 0 8px -4px rgba(0, 0, 0, 0.35);
