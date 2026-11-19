@@ -90,6 +90,7 @@ export const DEVICE_PREFS = new Set([
   'disableAnimations',  // performance pref tied to device speed
   'barcodeFlashlight',  // hardware-specific (no flashlight on desktop)
   'biometricLoginEnabled', // Android-only, per-device biometric unlock for sign-in
+  'foodsTab',           // last Foods/Meals/Recipes sub-tab, remembered across a reload
 ]);
 
 // Backwards-compat alias — keeps existing .has(key) checks working without
@@ -635,6 +636,9 @@ export const foodsListView          = createSettingStore('foodsListView',       
 // riding the Foods key until 2026-11-19, so a user who had turned Foods back to
 // cards silently got cards here too ("make list the default meal view").
 export const mealsListView          = createSettingStore('mealsListView',          true);
+// Last sub-tab on the Foods page, so a reload lands where the user was instead
+// of dropping back to Foods (2026-11-19).
+export const foodsTab               = createSettingStore('foodsTab',               'foodList');
 export const foodsShowYesterdayMeals= createSettingStore('foodsShowYesterdayMeals',true);
 // Foods → Meals tab: per-section collapse state (only takes effect when both Yesterday and Saved
 // sections are visible — i.e. yesterday has items + user is in pick mode). Default expanded.

@@ -33,7 +33,7 @@
   import { offCountryTagToFlag, offCountryTagToName } from '../lib/off-country-flag.js';
   import FoodListTable from '../components/foods/FoodListTable.svelte';
   import MealListTable from '../components/foods/MealListTable.svelte';
-  import { foodsListView, mealsListView } from '../stores/settings.js';
+  import { foodsListView, mealsListView, foodsTab } from '../stores/settings.js';
   import { foodsShowThumbnails, foodsShowCategories, foodsShowLabels, foodsShowNotes, foodsSort, mealsSort, recipesSort, foodCategories, foodsShowYesterdayMeals, foodsYesterdayCollapsed, foodsSavedCollapsed, mealNames, usdaEnabled, usdaApiKey, offEnabled, offSearchCountry, offSearchLanguage, foodsDefaultSource, diaryDefaultField, catName as _catName, catDisplay as _catDisplay, pageBanners, bannerStyle, energyUnit } from '../stores/settings.js';
   import { mealIcon } from '../lib/mealIcon.js';
   import { focusDefaultField } from '../lib/default-field.js';
@@ -58,7 +58,12 @@
     { label: 'Meals',   value: 'meals' },
     { label: 'Recipes', value: 'recipes' },
   ];
-  let activeTab = 0;
+  // The sub-tab is remembered across a reload (2026-11-19, user: a refresh on
+  // Meals must not drop back to Foods). `foodsTab` is a device setting, so a
+  // stale value on another device cannot move this one, and an unknown value
+  // falls back to Foods.
+  let activeTab = Math.max(0, TABS.findIndex((t) => t.value === $foodsTab));
+  $: if (TABS[activeTab]) foodsTab.set(TABS[activeTab].value);
   // Reset source + category filter when switching tabs (not when searchSource itself changes)
   let _prevTab = activeTab;
   $: if (activeTab !== _prevTab) {
