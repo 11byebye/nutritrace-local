@@ -24,16 +24,16 @@
     padding: 12px 14px;
     margin-bottom: 16px;
     border-radius: var(--radius-md);
-    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 45%, transparent);
-    background: color-mix(in srgb, var(--warning, #f59e0b) 10%, var(--surface-2));
+    border: 1px solid color-mix(in srgb, var(--warning, var(--warning)) 45%, transparent);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 10%, var(--surface-2));
     font-size: 13px;
     line-height: 1.45;
     color: var(--text-1);
     text-align: left;
   }
-  .cw-icon { font-size: 20px; color: var(--warning, #f59e0b); flex: none; margin-top: 1px; }
+  .cw-icon { font-size: 20px; color: var(--warning, var(--warning)); flex: none; margin-top: 1px; }
   .cw-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .cw-text p { margin: 0; }
   .cw-title { font-weight: 600; font-size: 14px; }
-  .cw-text a { color: var(--accent, #4fffb0); font-weight: 600; align-self: flex-start; }
+  .cw-text a { color: var(--accent, var(--accent)); font-weight: 600; align-self: flex-start; }
 </style>

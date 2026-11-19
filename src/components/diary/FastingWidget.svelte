@@ -315,13 +315,13 @@
     padding: 12px 14px;
     margin: 0 var(--page-px) 12px;
   }
-  .fasting-card.active   { border-left-color: #f59e0b; }
-  .fasting-card.reached  { border-left-color: #10b981; }
+  .fasting-card.active   { border-left-color: var(--warning); }
+  .fasting-card.reached  { border-left-color: var(--success); }
 
   .fast-idle { display: flex; align-items: center; gap: 12px; }
   .fast-icon { font-size: 28px; color: var(--accent); flex-shrink: 0; }
-  .fasting-card.active   .fast-icon { color: #f59e0b; }
-  .fasting-card.reached  .fast-icon { color: #10b981; }
+  .fasting-card.active   .fast-icon { color: var(--warning); }
+  .fasting-card.reached  .fast-icon { color: var(--success); }
   .fast-idle-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .fast-idle-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
   .fast-last-hint { font-size: 11px; color: var(--text-3); }
@@ -377,8 +377,8 @@
   }
   .fast-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #f59e0b, #f59e0b);
+    background: linear-gradient(90deg, var(--warning), var(--warning));
     transition: width 800ms linear;
   }
-  .fasting-card.reached .fast-progress-fill { background: #10b981; }
+  .fasting-card.reached .fast-progress-fill { background: var(--success); }
 </style>

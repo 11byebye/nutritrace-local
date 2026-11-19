@@ -1119,14 +1119,14 @@
   .pw-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
   .pw-bar { flex: 1; height: 4px; background: var(--surface-2); border-radius: var(--radius-full); overflow: hidden; }
   .pw-fill { height: 100%; border-radius: var(--radius-full); transition: width var(--dur-base), background var(--dur-fast); }
-  .pw-strength.s-0 .pw-fill, .pw-strength.s-1 .pw-fill { background: var(--danger, #ef4444); }
-  .pw-strength.s-2 .pw-fill { background: #f59e0b; }
+  .pw-strength.s-0 .pw-fill, .pw-strength.s-1 .pw-fill { background: var(--danger, var(--danger)); }
+  .pw-strength.s-2 .pw-fill { background: var(--warning); }
   .pw-strength.s-3 .pw-fill { background: var(--accent); }
-  .pw-strength.s-4 .pw-fill { background: var(--success, #22c55e); }
+  .pw-strength.s-4 .pw-fill { background: var(--success, var(--success)); }
   .pw-label { font-size: 11px; font-weight: 600; color: var(--text-3); min-width: 64px; text-align: right; }
-  .pw-strength.s-4 .pw-label { color: var(--success, #22c55e); }
-  .pw-strength.s-0 .pw-label, .pw-strength.s-1 .pw-label { color: var(--danger, #ef4444); }
-  .pw-mismatch { color: var(--danger, #ef4444); font-size: 11px; margin: 4px 0 0; }
+  .pw-strength.s-4 .pw-label { color: var(--success, var(--success)); }
+  .pw-strength.s-0 .pw-label, .pw-strength.s-1 .pw-label { color: var(--danger, var(--danger)); }
+  .pw-mismatch { color: var(--danger, var(--danger)); font-size: 11px; margin: 4px 0 0; }
 
   /* Gender cards */
   .gender-cards { display: flex; gap: 16px; margin-top: 16px; }

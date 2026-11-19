@@ -611,7 +611,7 @@
     padding: 10px; border-radius: var(--radius-md);
     background: var(--surface-2); border: 1px solid var(--border);
   }
-  .oidc-test-result.ok { border-color: var(--success, #22c55e); }
+  .oidc-test-result.ok { border-color: var(--success, var(--success)); }
   .oidc-form {
     display: flex; flex-direction: column; gap: 8px;
     padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md);

@@ -1586,8 +1586,8 @@
     border: 1px solid var(--border);
   }
   .tpl-chip-p { color: var(--macro-protein, #ec4899); border-color: color-mix(in srgb, var(--macro-protein, #ec4899) 40%, transparent); }
-  .tpl-chip-c { color: var(--macro-carbs,   #22c55e); border-color: color-mix(in srgb, var(--macro-carbs,   #22c55e) 40%, transparent); }
-  .tpl-chip-f { color: var(--macro-fat,     #f59e0b); border-color: color-mix(in srgb, var(--macro-fat,     #f59e0b) 40%, transparent); }
+  .tpl-chip-c { color: var(--macro-carbs,   var(--success)); border-color: color-mix(in srgb, var(--macro-carbs,   var(--success)) 40%, transparent); }
+  .tpl-chip-f { color: var(--macro-fat,     var(--warning)); border-color: color-mix(in srgb, var(--macro-fat,     var(--warning)) 40%, transparent); }
 
   /* Sheet */
   .sheet-backdrop {
@@ -1772,8 +1772,8 @@
   }
   .gp-seg { height: 100%; transition: width 300ms ease; }
   .gp-p { background: var(--macro-protein, #6366f1); }
-  .gp-c { background: var(--macro-carbs,   #f59e0b); }
-  .gp-f { background: var(--macro-fat,     #10b981); }
+  .gp-c { background: var(--macro-carbs,   var(--warning)); }
+  .gp-f { background: var(--macro-fat,     var(--success)); }
   .gp-empty { background: var(--surface-3); }
   .goals-preview-sum {
     font-size: 12px; color: var(--text-3);
@@ -1793,8 +1793,8 @@
     color: var(--text-2);
   }
   .gp-warn .material-symbols-rounded { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-  .gp-warn-warn { color: var(--red, #b91c1c); border-color: color-mix(in srgb, var(--red, #ef4444) 30%, var(--border)); }
-  .gp-warn-warn .material-symbols-rounded { color: var(--red, #ef4444); }
+  .gp-warn-warn { color: var(--red, #b91c1c); border-color: color-mix(in srgb, var(--red, var(--danger)) 30%, var(--border)); }
+  .gp-warn-warn .material-symbols-rounded { color: var(--red, var(--danger)); }
 
   /* ─── Center: macros quick-set card ─────────────────────────────────── */
   .goals-macro-card {

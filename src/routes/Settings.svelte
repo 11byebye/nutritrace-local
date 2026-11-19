@@ -1457,7 +1457,7 @@
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    background: linear-gradient(135deg, var(--warning), var(--danger));
     color: #fff;
     padding: 2px 6px;
     border-radius: 99px;

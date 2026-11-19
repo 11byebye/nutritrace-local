@@ -17,7 +17,7 @@
    */
   import { _ } from 'svelte-i18n';
   import { Nutrition } from '../../lib/nutrition.js';
-  import { energyUnit } from '../../stores/settings.js';
+  import { energyUnit, foodsSort } from '../../stores/settings.js';
 
   export let foods = [];
   export let manageMode = false;
@@ -30,8 +30,19 @@
 
   const MASS_UNITS = new Set(['g', 'ml']);
 
-  let sortKey = 'name';
-  let sortDir = 1;
+  // Sort mode lives in the existing `foodsSort` setting (alpha | most | recent),
+  // so the list remembers it and the Settings page agrees. A header click sorts
+  // by that column instead; changing the mode re-applies the chosen order.
+  const MODE_KEY = { alpha: 'name', most: 'usage', recent: 'recent' };
+  let sortKey = MODE_KEY[$foodsSort] || 'name';
+  let sortDir = sortKey === 'name' ? 1 : -1;
+
+  function setSortMode(e) {
+    const mode = e.currentTarget.value;
+    foodsSort.set(mode);
+    sortKey = MODE_KEY[mode] || 'name';
+    sortDir = sortKey === 'name' ? 1 : -1;
+  }
 
   // One exclusive filter, Food by default. The chips are a selector, not a
   // set of toggles: Food shows the whole library, a category shows only its
@@ -202,6 +213,8 @@
 
   function sortValue(food, key) {
     if (key === 'name') return String(food.name || '').toLowerCase();
+    if (key === 'usage') return Number(food.usage_count) || 0;
+    if (key === 'recent') return String(food.last_used_at || '');
     if (key === 'category') return catText(food).toLowerCase();
     if (key === 'package_g') return Number(food.package_weight_g) || -1;
     if (key === 'price') return Number(food.price) || -1;
@@ -253,6 +266,12 @@
       <span class="material-symbols-rounded chip-icon">shopping_bag</span>
       {$_('foods.list.bought')}
     </button>
+    <select class="sort-mode" value={$foodsSort} on:change={setSortMode}
+      title={$_('foods.list.sort_mode')} aria-label={$_('foods.list.sort_mode')}>
+      <option value="alpha">{$_('foods.list.sort_alpha')}</option>
+      <option value="most">{$_('foods.list.sort_most')}</option>
+      <option value="recent">{$_('foods.list.sort_recent')}</option>
+    </select>
     <span class="listview-note">{$_('foods.list.per_100_note')}</span>
     <span class="listview-count">{sorted.length} / {foods.length}</span>
   </div>
@@ -347,6 +366,15 @@
     color: var(--accent);
   }
   .chip-icon { font-size: 15px; }
+  .sort-mode {
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 12px;
+    cursor: pointer;
+  }
   .listview-count { margin-left: auto; font-size: 11px; color: var(--text-3); }
   .empty-row td { text-align: center; color: var(--text-3); padding: 18px 10px; }
   .food-table {

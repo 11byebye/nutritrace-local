@@ -3268,8 +3268,8 @@
     flex-shrink: 0;
   }
   .si-good { color: var(--accent); }
-  .si-warn { color: #f59e0b; }
-  .si-bad  { color: #ef4444; }
+  .si-warn { color: var(--warning); }
+  .si-bad  { color: var(--danger); }
   .si-desc {
     font-size: 13px;
     color: var(--text-2);
@@ -3355,7 +3355,7 @@
     font-weight: 700;
     color: var(--text-1);
   }
-  .rd-penalty { color: #f59e0b; }
+  .rd-penalty { color: var(--warning); }
 
   /* Daily Readiness / Stress Management contextual copy. Lead is the
      overall-score sentence, driver is the sub-score-driven explanation

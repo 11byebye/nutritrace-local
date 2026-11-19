@@ -19,7 +19,7 @@
   import { takePhoto } from '../lib/camera.js';
   import { isNative } from '../lib/platform.js';
   import BarcodeScanner from '../components/foods/BarcodeScanner.svelte';
-  import { foodsShowCategories, foodsShowLabels, foodsShowNotes, foodCategories, visibleNutriments, nutrimentsOrder, customNutriments, cropPhotos, offUsername, offPassword, offUploadCountry, aiEffectivelyEnabled, envLocks, aiProvider, aiApiKey, aiModel, aiBaseUrl, energyUnit, showUnitMetadata, warnUnitMismatch, catName as _catName, catDisplay as _catDisplay, disableAnimations } from '../stores/settings.js';
+  import { foodsShowNotes, foodCategories, visibleNutriments, nutrimentsOrder, customNutriments, cropPhotos, offUsername, offPassword, offUploadCountry, aiEffectivelyEnabled, envLocks, aiProvider, aiApiKey, aiModel, aiBaseUrl, energyUnit, showUnitMetadata, warnUnitMismatch, catName as _catName, disableAnimations } from '../stores/settings.js';
   import { callAI, callAIProxy } from '../lib/aiChat.js';
   import { fitImageDataUrl } from '../lib/image-fit.js';
   import { draftKey as _mkDraftKey, loadDraft, loadDraftImg, clearDraft, makeDebouncedPersist, sweepDrafts } from '../lib/editor-draft.js';
@@ -844,15 +844,20 @@
     }
   }
 
-  function toggleCategory(cat) {
-    const name = _catName(cat);
-    food.categories = food.categories || [];
-    if (food.categories.includes(name)) {
-      food.categories = food.categories.filter(c => c !== name);
-    } else {
-      food.categories = [...food.categories, name];
-    }
-  }
+  // The shelf names the library already uses, plus any the user added in
+  // Settings and the row's current value, so nothing a food carries becomes
+  // unselectable. One value per food: the server stores a single column.
+  const CANONICAL_CATEGORIES = [
+    'Kött och fågel', 'Fisk och skaldjur', 'Mejeri och ost', 'Ägg',
+    'Grönsaker', 'Potatis och rotfrukter', 'Frukt och bär',
+    'Baljväxter och soja', 'Nötter och frön', 'Spannmål och bröd',
+    'Fett och olja', 'Socker och sötsaker', 'Kryddor och smaksättning', 'Dryck',
+  ];
+  $: categoryOptions = [...new Set([
+    ...CANONICAL_CATEGORIES,
+    ...($foodCategories || []).map((c) => _catName(c)),
+    ...(food.categories || []),
+  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'sv'));
 
   // Discard restored draft (#157 followup, Wildenhaus). Snaps form back
   // to what the server actually loaded (or empty for the add-new path)
@@ -1263,23 +1268,19 @@
       {/if}
     </div>
 
-    <!-- Categories -->
-    {#if $foodsShowCategories && ($foodCategories || []).length > 0}
-      <div class="card editor-card">
-        <div class="editor-card-title">{$_('food_editor.card_categories')}</div>
-        <div class="cat-chips">
-          {#each $foodCategories as cat}
-            <button class="chip" class:accent={(food.categories||[]).includes(_catName(cat))}
-              on:click={() => toggleCategory(cat)}>
-              {#if (food.categories||[]).includes(_catName(cat))}
-                <span class="material-symbols-rounded" style="font-size:14px">check</span>
-              {/if}
-              {$foodsShowLabels ? _catDisplay(cat) : _catName(cat)}
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
+    <!-- Category (2026-11-19): one picker, always shown. The old chips needed
+         foodCategories (empty by default) and wrote an array where the server
+         keeps a single column, so a wrong category could not be fixed here. -->
+    <div class="card editor-card">
+      <div class="editor-card-title">{$_('food_editor.card_category')}</div>
+      <select class="input" value={food.categories?.[0] || ''}
+        on:change={(e) => (food.categories = e.currentTarget.value ? [e.currentTarget.value] : [])}>
+        <option value="">{$_('food_editor.category_none')}</option>
+        {#each categoryOptions as c}
+          <option value={c}>{c}</option>
+        {/each}
+      </select>
+    </div>
 
     <!-- Notes -->
     {#if $foodsShowNotes}
@@ -1388,8 +1389,8 @@
     display: flex; align-items: center; gap: 8px;
     margin-top: 8px;
     padding: 8px 12px;
-    background: color-mix(in srgb, var(--warning, #f59e0b) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 30%, transparent);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning, var(--warning)) 30%, transparent);
     border-radius: var(--radius-md);
     font-size: 13px;
     color: var(--text-1);
@@ -1538,24 +1539,24 @@
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
     background: var(--accent-dim, rgba(59,130,246,0.10));
-    border: 1px solid var(--accent, #3b82f6);
+    border: 1px solid var(--accent, var(--info));
     border-radius: var(--radius-md);
     color: var(--text-1);
     font-size: 13px;
   }
-  .draft-restored-banner .material-symbols-rounded { font-size: 20px; color: var(--accent, #3b82f6); }
+  .draft-restored-banner .material-symbols-rounded { font-size: 20px; color: var(--accent, var(--info)); }
   .draft-restored-text { flex: 1; }
   .draft-restored-discard {
     background: transparent;
-    border: 1px solid var(--accent, #3b82f6);
-    color: var(--accent, #3b82f6);
+    border: 1px solid var(--accent, var(--info));
+    color: var(--accent, var(--info));
     padding: 4px 12px;
     border-radius: var(--radius-sm);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
   }
-  .draft-restored-discard:hover { background: var(--accent, #3b82f6); color: #fff; }
+  .draft-restored-discard:hover { background: var(--accent, var(--info)); color: #fff; }
   .editor-card-title { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
   .form-row { display: flex; gap: 12px; align-items: flex-end; }
   /* Issues #69 + #70: nutrition basis + alt-unit + density UI */
@@ -1601,7 +1602,7 @@
     color: var(--text-3);
   }
   .alt-unit-del:hover {
-    color: var(--danger, #ef4444);
+    color: var(--danger, var(--danger));
     border-color: var(--border);
   }
   .alt-unit-del .material-symbols-rounded { font-size: 18px; }

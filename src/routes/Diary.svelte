@@ -3399,7 +3399,7 @@
   .activity-footer { cursor: default; }
   .activity-footer:hover, .activity-footer:active { background: transparent; }
   .amb-seg {
-    background: linear-gradient(90deg, #4FFFB0, #00B894);
+    background: linear-gradient(90deg, var(--accent), #00B894);
     border-right: 1px solid var(--surface-2, rgba(0,0,0,0.18));
   }
   .amb-seg:last-child { border-right: 0; }
@@ -3422,7 +3422,7 @@
      Lives on the date bar (works on mobile + desktop) so scope covers
      both the topbar-actions layout and the date-bar itself. */
   :global(.btn-icon.day-complete-on) {
-    color: var(--success, #10b981);
+    color: var(--success, var(--success));
   }
   /* #207: matching check next to the date label so the current viewed
      day carries its state visually without relying on the toggle icon
@@ -3430,7 +3430,7 @@
      white space in the date bar). */
   .date-complete-indicator {
     font-size: 16px;
-    color: var(--success, #10b981);
+    color: var(--success, var(--success));
     vertical-align: middle;
     margin-left: 4px;
   }
@@ -3498,8 +3498,8 @@
     padding-top: var(--dds-pad, 44px);
   }
   :global(.diary-day-status.complete) {
-    background: color-mix(in srgb, var(--success, #10b981) 10%, var(--surface-1));
-    border-color: color-mix(in srgb, var(--success, #10b981) 22%, transparent);
+    background: color-mix(in srgb, var(--success, var(--success)) 10%, var(--surface-1));
+    border-color: color-mix(in srgb, var(--success, var(--success)) 22%, transparent);
   }
   :global(.diary-day-status .dds-icon) {
     font-size: 15px;
@@ -3507,7 +3507,7 @@
     color: var(--accent);
   }
   :global(.diary-day-status.complete .dds-icon) {
-    color: var(--success, #10b981);
+    color: var(--success, var(--success));
   }
   /* The icon and the text stay together on the first row. The pair takes
      the line's free space ahead of the button (999 to 1), so the button
@@ -3731,7 +3731,7 @@
     opacity: 1;
   }
   :global(.meal-header .meal-complete-btn.meal-done) {
-    color: var(--success, #10b981);
+    color: var(--success, var(--success));
     opacity: 1;
   }
 
@@ -4498,7 +4498,7 @@
     height: 24px;
     color: var(--text-3);
   }
-  .split-child-del:hover { color: var(--danger, #ef4444); }
+  .split-child-del:hover { color: var(--danger, var(--danger)); }
 
   .edit-sheet-body { padding: 16px; }
   .edit-macros { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -4779,7 +4779,7 @@
   }
   .mmb-p { background: linear-gradient(90deg, #BA68C8, var(--macro-protein)); }
   .mmb-c { background: linear-gradient(90deg, #00E676, var(--macro-carbs)); }
-  .mmb-f { background: linear-gradient(90deg, var(--macro-fat), #E65100); }
+  .mmb-f { background: linear-gradient(90deg, var(--macro-fat), var(--warning)); }
   .meal-macro-text { display: block; }
 
   /* Nutrition bar (inside bottom bar) */
@@ -4832,7 +4832,7 @@
   }
   .dbb-mb-p { background: linear-gradient(90deg, #BA68C8, var(--macro-protein)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
   .dbb-mb-c { background: linear-gradient(90deg, #00E676, var(--macro-carbs)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
-  .dbb-mb-f { background: linear-gradient(90deg, var(--macro-fat), #E65100); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-f { background: linear-gradient(90deg, var(--macro-fat), var(--warning)); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
   /* Text summary row button */
   .dbb-summary-row {
     display: flex;

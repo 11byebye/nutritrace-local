@@ -352,14 +352,14 @@
   }
   .setup-card:hover {
     background: var(--surface-2);
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent, var(--info));
   }
   .setup-card:active {
     transform: scale(0.98);
   }
   .setup-card-icon {
     font-size: 40px;
-    color: var(--accent, #3b82f6);
+    color: var(--accent, var(--info));
   }
   .setup-card-title {
     font-size: 18px;
@@ -406,7 +406,7 @@
     font-size: 13px;
     color: var(--text-2);
   }
-  .server-icon { font-size: 18px; color: var(--accent, #3b82f6); }
+  .server-icon { font-size: 18px; color: var(--accent, var(--info)); }
   .server-url {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -454,8 +454,8 @@
     gap: 10px;
     align-items: flex-start;
     padding: 12px 14px;
-    background: color-mix(in srgb, #f59e0b 8%, transparent);
-    border-left: 3px solid #f59e0b;
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+    border-left: 3px solid var(--warning);
     border-radius: 4px;
     font-size: 13px;
     line-height: 1.5;
@@ -463,7 +463,7 @@
   }
   .no-auth-warning .material-symbols-rounded {
     font-size: 20px;
-    color: #f59e0b;
+    color: var(--warning);
     flex-shrink: 0;
   }
 </style>

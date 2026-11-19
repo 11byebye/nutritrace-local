@@ -455,7 +455,7 @@
   .ws-complete-mark {
     font-size: 12px;
     line-height: 1;
-    color: var(--success, #10b981);
+    color: var(--success, var(--success));
   }
   .ws-kcal {
     font-size: 10px;

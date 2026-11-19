@@ -542,8 +542,8 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .version-chip.chip-warn {
-    background: color-mix(in srgb, var(--warning, #f57c00) 15%, transparent);
-    color: var(--warning, #f57c00);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent);
+    color: var(--warning, var(--warning));
   }
   /* Small status dot used in the server row's description line to
      make current-vs-behind scannable without color-blind users needing
@@ -556,7 +556,7 @@
     vertical-align: middle;
   }
   .status-dot.dot-ok   { background: var(--success, #2e7d32); }
-  .status-dot.dot-warn { background: var(--warning, #f57c00); }
+  .status-dot.dot-warn { background: var(--warning, var(--warning)); }
 
   .channel-block {
     display: flex; flex-direction: column; gap: 10px;
@@ -818,13 +818,13 @@
      second island. */
   .server-instructions-card {
     margin-top: -8px;
-    border: 1px solid color-mix(in srgb, var(--warning, #f57c00) 25%, transparent);
-    background: color-mix(in srgb, var(--warning, #f57c00) 6%, var(--surface-1));
+    border: 1px solid color-mix(in srgb, var(--warning, var(--warning)) 25%, transparent);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 6%, var(--surface-1));
   }
   .server-instructions { display: flex; flex-direction: column; gap: 12px; }
   .server-headline {
     display: flex; align-items: flex-start; gap: 12px;
-    color: var(--warning, #f57c00);
+    color: var(--warning, var(--warning));
   }
   .server-headline .material-symbols-rounded { font-size: 22px; margin-top: 2px; }
   .server-headline-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -850,8 +850,8 @@
     text-transform: uppercase; letter-spacing: 0.3px;
   }
   .badge-warn {
-    background: color-mix(in srgb, var(--warning, #f57c00) 15%, transparent);
-    color: var(--warning, #f57c00);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 15%, transparent);
+    color: var(--warning, var(--warning));
   }
   .badge-ok {
     background: color-mix(in srgb, var(--success, #2e7d32) 15%, transparent);

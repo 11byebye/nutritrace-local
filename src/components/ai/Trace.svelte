@@ -2442,7 +2442,7 @@ Diary logging streak: ${ctx.streakText || '(unknown)'}`
      scales up 8% so the user has unambiguous "live" feedback. */
   .ai-fab.recording {
     transform: scale(1.08);
-    background: linear-gradient(135deg, #ef4444, #b91c1c, #ef4444, #dc2626, #ef4444);
+    background: linear-gradient(135deg, var(--danger), #b91c1c, var(--danger), #dc2626, var(--danger));
     background-size: 300% 300%;
     border-color: rgba(255, 200, 200, 0.45);
     animation:

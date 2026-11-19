@@ -120,7 +120,7 @@
     gap: 6px;
   }
   .aw-icon {
-    color: #4FFFB0;
+    color: var(--accent);
     font-size: 20px;
   }
   .aw-title {
@@ -155,7 +155,7 @@
     border-radius: var(--radius-sm);
   }
   .aw-row-total {
-    background: color-mix(in srgb, #4FFFB0 12%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     font-weight: 700;
     margin-top: 4px;
   }
@@ -168,10 +168,10 @@
     font-variant-numeric: tabular-nums;
   }
   .aw-val-active {
-    color: #4FFFB0;
+    color: var(--accent);
   }
   .aw-plus {
-    color: #4FFFB0;
+    color: var(--accent);
     font-weight: 700;
     margin-right: 2px;
   }

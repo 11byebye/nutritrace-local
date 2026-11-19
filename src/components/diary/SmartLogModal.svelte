@@ -601,7 +601,7 @@
     flex-direction: column;
     gap: 8px;
   }
-  .ql-row.unmatched { border-color: var(--warning, #f59e0b); }
+  .ql-row.unmatched { border-color: var(--warning, var(--warning)); }
   .ql-row-main { display: flex; flex-direction: column; gap: 2px; }
   .ql-row-name {
     font-size: 14px;
@@ -623,12 +623,12 @@
     letter-spacing: 0.04em;
   }
   .ql-badge-local     { background: var(--accent-dim); color: var(--accent); }
-  .ql-badge-off       { background: color-mix(in srgb, #3b82f6 20%, transparent); color: #60a5fa; }
+  .ql-badge-off       { background: color-mix(in srgb, var(--info) 20%, transparent); color: #60a5fa; }
   .ql-badge-meal      { background: color-mix(in srgb, #a855f7 20%, transparent); color: #c084fc; }
   .ql-badge-recipe    { background: color-mix(in srgb, #ec4899 20%, transparent); color: #f472b6; }
-  .ql-badge-yesterday { background: color-mix(in srgb, #10b981 20%, transparent); color: #34d399; }
+  .ql-badge-yesterday { background: color-mix(in srgb, var(--success) 20%, transparent); color: #34d399; }
   .ql-badge-water     { background: color-mix(in srgb, #38bdf8 20%, transparent); color: #38bdf8; }
-  .ql-badge-warn      { background: color-mix(in srgb, var(--warning, #f59e0b) 20%, transparent); color: var(--warning, #f59e0b); }
+  .ql-badge-warn      { background: color-mix(in srgb, var(--warning, var(--warning)) 20%, transparent); color: var(--warning, var(--warning)); }
   .ql-subitem {
     font-size: 12px;
     color: var(--text-2);

@@ -1558,24 +1558,24 @@
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
     background: var(--accent-dim, rgba(59,130,246,0.10));
-    border: 1px solid var(--accent, #3b82f6);
+    border: 1px solid var(--accent, var(--info));
     border-radius: var(--radius-md);
     color: var(--text-1);
     font-size: 13px;
   }
-  .draft-restored-banner .material-symbols-rounded { font-size: 20px; color: var(--accent, #3b82f6); }
+  .draft-restored-banner .material-symbols-rounded { font-size: 20px; color: var(--accent, var(--info)); }
   .draft-restored-text { flex: 1; }
   .draft-restored-discard {
     background: transparent;
-    border: 1px solid var(--accent, #3b82f6);
-    color: var(--accent, #3b82f6);
+    border: 1px solid var(--accent, var(--info));
+    color: var(--accent, var(--info));
     padding: 4px 12px;
     border-radius: var(--radius-sm);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
   }
-  .draft-restored-discard:hover { background: var(--accent, #3b82f6); color: #fff; }
+  .draft-restored-discard:hover { background: var(--accent, var(--info)); color: #fff; }
   .editor-card-title { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
 
   /* Federation source badge + import-warnings banner. Shown only on
@@ -1595,10 +1595,10 @@
   .ct-source-warn {
     display: flex; gap: 10px; align-items: flex-start;
     padding: 10px 12px; border-radius: 8px;
-    background: color-mix(in srgb, var(--warning, #f59e0b) 12%, transparent);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 12%, transparent);
     font-size: 13px;
   }
-  .ct-source-warn-icon { color: var(--warning, #f59e0b); flex-shrink: 0; font-size: 18px; }
+  .ct-source-warn-icon { color: var(--warning, var(--warning)); flex-shrink: 0; font-size: 18px; }
   .ct-source-warn-line { margin: 0; }
   .ct-source-warn-line + .ct-source-warn-line { margin-top: 4px; }
   /* #207 companion: refresh banner shown when the CT source recipe has
@@ -1659,10 +1659,10 @@
   /* Source-deleted variant: same shape as the refresh banner, warning-
      tinted so it reads as "attention needed" not "friendly update". */
   .ct-source-deleted {
-    background: color-mix(in srgb, var(--warning, #f59e0b) 12%, var(--surface-1));
-    border-color: color-mix(in srgb, var(--warning, #f59e0b) 30%, transparent);
+    background: color-mix(in srgb, var(--warning, var(--warning)) 12%, var(--surface-1));
+    border-color: color-mix(in srgb, var(--warning, var(--warning)) 30%, transparent);
   }
-  .ct-source-deleted .ct-source-refresh-icon { color: var(--warning, #f59e0b); }
+  .ct-source-deleted .ct-source-refresh-icon { color: var(--warning, var(--warning)); }
 
   /* Photo */
   .photo-preview-wrap {

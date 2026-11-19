@@ -217,9 +217,9 @@
   .fi-history-day { color: var(--text-3); }
   .fi-history-dur { color: var(--text-1); font-weight: 600; font-feature-settings: 'tnum'; }
   .fi-history-goal { font-size: 11px; color: var(--text-3); }
-  .fi-history-goal.met { color: #10b981; }
+  .fi-history-goal.met { color: var(--success); }
   .fi-history-del { padding: 4px; color: var(--text-3); }
-  .fi-history-del:hover { color: var(--danger, #ef4444); }
+  .fi-history-del:hover { color: var(--danger, var(--danger)); }
 
   @media (max-width: 380px) {
     .fi-stats { grid-template-columns: repeat(2, 1fr); }

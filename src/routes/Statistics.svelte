@@ -468,7 +468,7 @@
     const isDark      = document.documentElement.getAttribute('data-theme') !== 'light';
     const gridColor   = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
     const textColor   = isDark ? 'rgba(240,242,248,0.55)' : 'rgba(13,15,20,0.55)';
-    const accentColor = isDark ? '#4FFFB0' : '#00C47A';
+    const accentColor = isDark ? 'var(--accent)' : 'var(--accent)';
 
     const isBar = $statsChartType === 'bar';
     // statsShowEmptyDays controls whether dates without a logged value stay
@@ -1726,11 +1726,11 @@
     letter-spacing: 0;
   }
   .stats-rail-delta.good {
-    background: color-mix(in srgb, #22c55e 22%, transparent);
+    background: color-mix(in srgb, var(--success) 22%, transparent);
     color: #16a34a;
   }
   .stats-rail-delta.bad {
-    background: color-mix(in srgb, #ef4444 22%, transparent);
+    background: color-mix(in srgb, var(--danger) 22%, transparent);
     color: #dc2626;
   }
   :global([data-theme="dark"]) .stats-rail-delta.good { color: #4ade80; }

@@ -70,7 +70,7 @@
   .strength-bar { flex: 1; border-radius: 2px; transition: background 200ms ease; }
   .strength-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
   .strength-label { font-weight: 600; }
-  .strength-min { color: var(--danger, #ef4444); font-size: 11px; }
+  .strength-min { color: var(--danger, var(--danger)); font-size: 11px; }
   .strength-feedback { font-size: 11px; color: var(--text-3); line-height: 1.4; }
   .strength-warn { color: var(--text-2); }
   .strength-tip::before { content: '· '; }

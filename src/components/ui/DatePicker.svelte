@@ -250,7 +250,7 @@
     top: 3px; right: 3px;
     width: 5px; height: 5px;
     border-radius: 50%;
-    background: var(--success, #10b981);
+    background: var(--success, var(--success));
   }
   .dp-day.dp-sel.dp-complete::after {
     background: #fff;

@@ -963,7 +963,7 @@
     border-radius: var(--radius-md);
   }
   .invite-link-row { display: flex; gap: 8px; }
-  .invite-hint { font-size: 11px; color: var(--danger, #ef4444); margin: -2px 0 4px; line-height: 1.4; }
+  .invite-hint { font-size: 11px; color: var(--danger, var(--danger)); margin: -2px 0 4px; line-height: 1.4; }
 
   .pending-invites {
     display: flex; flex-direction: column; gap: 4px;
@@ -983,7 +983,7 @@
   .pending-invite-email { font-size: 13px; font-weight: 500; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pending-invite-meta  { font-size: 11px; color: var(--text-3); }
   .pending-invite-revoke { padding: 4px; min-width: 0; color: var(--text-3); }
-  .pending-invite-revoke:hover { color: var(--danger, #ef4444); }
-  :global(.um-form-block .input.invalid) { border-color: var(--danger, #ef4444); }
+  .pending-invite-revoke:hover { color: var(--danger, var(--danger)); }
+  :global(.um-form-block .input.invalid) { border-color: var(--danger, var(--danger)); }
 
 </style>
