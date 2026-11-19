@@ -40,19 +40,33 @@
 
   $: total = ($aFat * 9) + ($aCarbs * 4) + ($aProtein * 4);
 
-  function arc(value, total) {
-    if (!total) return C; // empty ring
-    const pct = Math.min(value / total, 1);
-    return C - C * pct;
-  }
-
   $: fatKcal     = $aFat * 9;
   $: carbsKcal   = $aCarbs * 4;
   $: proteinKcal = $aProtein * 4;
 
-  $: fatOffset     = C;
-  $: carbsOffset   = arc(fatKcal, total);
-  $: proteinOffset = arc(fatKcal + carbsKcal, total);
+  // Macro arcs are real paths, not dash tricks, so the divider between two
+  // slices is a fixed gap in degrees (2026-11-19, user: "colors need be more
+  // distinct from each other or divider between them need be easier to
+  // see"). Each slice is `GAP` px shorter than its share and centred in it.
+  const GAP = 7;
+  const ARC_R = R - STROKE - 4;
+  function arcPath(startFrac, frac) {
+    const gapDeg = (GAP / C) * 360;
+    const a0 = startFrac * 360 + gapDeg / 2;
+    const a1 = (startFrac + frac) * 360 - gapDeg / 2;
+    if (a1 <= a0) return '';
+    const pt = (d) => {
+      const t = ((d - 90) * Math.PI) / 180;
+      return [SIZE / 2 + ARC_R * Math.cos(t), SIZE / 2 + ARC_R * Math.sin(t)];
+    };
+    const [x0, y0] = pt(a0);
+    const [x1, y1] = pt(a1);
+    return `M ${x0} ${y0} A ${ARC_R} ${ARC_R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+  }
+  $: _frac = (v) => (total > 0 ? Math.min(v / total, 1) : 0);
+  $: fatPath = arcPath(0, _frac(fatKcal));
+  $: carbPath = arcPath(_frac(fatKcal), _frac(carbsKcal));
+  $: protPath = arcPath(_frac(fatKcal + carbsKcal), _frac(proteinKcal));
 
   // Macro percentages of total macro calories. Largest-remainder rounding
   // so the three values sum to exactly 100 even when individual rounds
@@ -72,11 +86,6 @@
     for (const [k] of remainders) { if (leftover <= 0) break; out[k]++; leftover--; }
     return out;
   })();
-
-  // Rotation so segments appear in order: fat -> carbs -> protein
-  $: fatRotate     = -90;
-  $: carbsRotate   = fatRotate + (fatKcal / (total || 1)) * 360;
-  $: proteinRotate = carbsRotate + (carbsKcal / (total || 1)) * 360;
 
   $: caloriesPct = caloriesGoal ? Math.min($aCals / caloriesGoal, 1) : 0;
   $: bgOffset    = C - C * caloriesPct;
@@ -115,38 +124,14 @@
       opacity="0.2"
     />
     <!-- Fat segment -->
-    <circle
-      cx={SIZE/2} cy={SIZE/2} r={R - STROKE - 4}
-      fill="none"
-      stroke="var(--macro-fat)"
-      stroke-width={STROKE - 2}
-      stroke-dasharray={C * 0.9}
-      stroke-dashoffset={arc(fatKcal, total)}
-      stroke-linecap="round"
-      transform="rotate({fatRotate} {SIZE/2} {SIZE/2})"
-    />
+    <path d={fatPath} fill="none" stroke="var(--macro-fat)"
+      stroke-width={STROKE - 2} stroke-linecap="butt" />
     <!-- Carbs segment -->
-    <circle
-      cx={SIZE/2} cy={SIZE/2} r={R - STROKE - 4}
-      fill="none"
-      stroke="var(--macro-carbs)"
-      stroke-width={STROKE - 2}
-      stroke-dasharray={C * 0.9}
-      stroke-dashoffset={arc(carbsKcal, total)}
-      stroke-linecap="round"
-      transform="rotate({carbsRotate} {SIZE/2} {SIZE/2})"
-    />
+    <path d={carbPath} fill="none" stroke="var(--macro-carbs)"
+      stroke-width={STROKE - 2} stroke-linecap="butt" />
     <!-- Protein segment -->
-    <circle
-      cx={SIZE/2} cy={SIZE/2} r={R - STROKE - 4}
-      fill="none"
-      stroke="var(--macro-protein)"
-      stroke-width={STROKE - 2}
-      stroke-dasharray={C * 0.9}
-      stroke-dashoffset={arc(proteinKcal, total)}
-      stroke-linecap="round"
-      transform="rotate({proteinRotate} {SIZE/2} {SIZE/2})"
-    />
+    <path d={protPath} fill="none" stroke="var(--macro-protein)"
+      stroke-width={STROKE - 2} stroke-linecap="butt" />
   </svg>
 
   <!-- Centre text -->

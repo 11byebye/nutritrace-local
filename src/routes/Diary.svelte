@@ -4786,10 +4786,12 @@
     background: var(--surface-3); overflow: hidden;
     display: flex; margin-bottom: 6px;
   }
-  /* Solid, one hue: the ramp is the accent's nuances, never a gradient. */
+  /* Solid, one hue: the ramp is the accent's nuances, never a gradient.
+     A 1px gap between segments keeps the division readable when two
+     shades sit close (2026-11-19). */
   .mmb-p { background: var(--macro-protein); }
-  .mmb-c { background: var(--macro-carbs); }
-  .mmb-f { background: var(--macro-fat); }
+  .mmb-c { background: var(--macro-carbs); border-left: 1px solid var(--bg); }
+  .mmb-f { background: var(--macro-fat); border-left: 1px solid var(--bg); }
   .meal-macro-text { display: block; }
 
   /* Nutrition bar (inside bottom bar) */
@@ -4841,8 +4843,8 @@
     cursor: pointer;
   }
   .dbb-mb-p { background: var(--macro-protein); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
-  .dbb-mb-c { background: var(--macro-carbs); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
-  .dbb-mb-f { background: var(--macro-fat); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-c { background: var(--macro-carbs); border-left: 1px solid var(--bg); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .dbb-mb-f { background: var(--macro-fat); border-left: 1px solid var(--bg); transition: width 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
   /* Text summary row button */
   .dbb-summary-row {
     display: flex;
