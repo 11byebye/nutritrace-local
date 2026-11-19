@@ -502,7 +502,16 @@
 
   // Meal visual identity (icon + accent color per meal slot)
   // Icons are now computed per meal name via mealIcon(); colors cycle for any number of meals
-  const MEAL_COLORS = ['#FFB347','#4FFFB0','#4FC3F7','#CE93D8','#FF7070','#80DEEA','#C5E1A5','#FFD54F','#FF80AB','#B39DDB'];
+  // Meals cycle the accent at five strengths (2026-11-19: one gradient hue,
+  // not ten unrelated ones). Mixed toward the text colour so every step
+  // stays legible on both themes.
+  const MEAL_COLORS = [
+    'var(--accent)',
+    'color-mix(in srgb, var(--accent) 85%, var(--text-1))',
+    'color-mix(in srgb, var(--accent) 70%, var(--text-1))',
+    'color-mix(in srgb, var(--accent) 55%, var(--text-1))',
+    'color-mix(in srgb, var(--accent) 40%, var(--text-1))',
+  ];
   const mealColor = i => MEAL_COLORS[i % MEAL_COLORS.length];
 
   // Tweened counters — animate numbers when food is added/removed
