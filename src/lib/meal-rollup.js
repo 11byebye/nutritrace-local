@@ -16,27 +16,10 @@
  */
 import { costOf, sumCost } from './price.js';
 
-const TO_G = { g: 1, ml: 1, oz: 28.349523125, lb: 453.59237, cup: 240, tbsp: 15, tsp: 5, piece: 100, serving: 100 };
-
 const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
-
-/** Grams in one serving of the meal: the stored per-serving portion for a
- *  recipe, the summed ingredient weight for a plain meal. */
-export function servingGrams(meal) {
-  const unit = String(meal?.unit || 'g').toLowerCase();
-  const portion = num(meal?.portion);
-  if (meal?.is_recipe && portion > 0) return portion * (TO_G[unit] ?? 1);
-  const items = Array.isArray(meal?.items) ? meal.items : [];
-  const total = items.reduce((s, it) => {
-    const qty = num(it?.quantity) || 1;
-    const p = num(it?.portion) || 0;
-    return s + p * qty * (TO_G[String(it?.unit || 'g').toLowerCase()] ?? 1);
-  }, 0);
-  return total > 0 ? total : null;
-}
 
 /** Per-serving macros, batch cost and protein per krona for one meal row. */
 export function mealRollup(meal) {
@@ -77,17 +60,14 @@ export function mealRollup(meal) {
 
   return {
     servings,
-    items: items.length,
     hasNutrition: hasStored,
     calories: num(nutrition.calories),
     proteins,
     carbohydrates: num(nutrition.carbohydrates),
     fat: num(nutrition.fat),
-    servingGrams: servingGrams(meal),
     totalCost,
     costPerServing,
     partial,
-    pricedItems,
     proteinPerSek:
       costPerServing != null && costPerServing > 0 && proteins > 0
         ? proteins / costPerServing

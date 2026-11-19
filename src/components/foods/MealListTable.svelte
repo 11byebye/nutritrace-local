@@ -28,14 +28,11 @@
 
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
-    { key: 'items', label: 'foods.list.items', align: 'right' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
-    { key: 'serving', label: 'foods.list.serving', align: 'right' },
     { key: 'price', label: 'foods.list.price', align: 'right' },
-    { key: 'price_serving', label: 'foods.list.price_serving', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
   ];
 
@@ -51,7 +48,6 @@
 
   function sortValue(row, key) {
     if (key === 'name') return String(row.food.name || '').toLowerCase();
-    if (key === 'serving') return row.r.servingGrams ?? -1;
     return row.r[key] ?? -1;
   }
 
@@ -74,11 +70,6 @@
     if (value == null) return '';
     if (Number.isInteger(value)) return String(value);
     return value.toFixed(digits).replace('.', ',');
-  }
-
-  function grams(value) {
-    if (value == null) return '';
-    return `${Math.round(value)} g`;
   }
 
   function money(value) {
@@ -147,14 +138,11 @@
                 <span class="cell-brand">by {food._shared_by}</span>
               {/if}
             </td>
-            <td class="col-items right">{r.items || ''}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
             <td class="col-proteins right">{show(r.proteins)}</td>
             <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
             <td class="col-fat right">{show(r.fat)}</td>
-            <td class="col-serving right">{grams(r.servingGrams)}</td>
             <td class="col-price right">{priceCell(r.totalCost, r.partial)}</td>
-            <td class="col-price_serving right">{priceCell(r.costPerServing, r.partial)}</td>
             <td class="col-protein_sek right">{r.partial ? '' : proteinSek(r.proteinPerSek)}</td>
           </tr>
         {/each}
@@ -249,6 +237,5 @@
   }
   .cell-name { display: flex; align-items: center; gap: 4px; color: var(--text-1); }
   .cell-brand { display: block; font-size: 11px; color: var(--text-3); }
-  .col-items { color: var(--text-2); }
   .listview-note { font-size: 11px; color: var(--text-3); }
 </style>

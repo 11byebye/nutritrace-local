@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mealRollup, servingGrams } from '../src/lib/meal-rollup.js';
+import { mealRollup } from '../src/lib/meal-rollup.js';
 
 const chicken = {
   name: 'Kycklingfilé', portion: 200, unit: 'g', quantity: 1,
@@ -32,7 +32,6 @@ test('recipe: stored per-serving macros and cost per serving', () => {
   close(r.costPerServing, 3.5);
   close(r.proteinPerSek, 25 / 3.5);
   assert.equal(r.partial, false);
-  assert.equal(r.servingGrams, 150);
 });
 
 test('plain meal: one serving is the whole meal', () => {
@@ -45,7 +44,6 @@ test('plain meal: one serving is the whole meal', () => {
   assert.equal(r.calories, 600);
   close(r.costPerServing, 14);
   close(r.costPerServing, r.totalCost);
-  assert.equal(r.servingGrams, 300);
 });
 
 test('an unpriced ingredient makes the total a floor', () => {
@@ -56,7 +54,6 @@ test('an unpriced ingredient makes the total a floor', () => {
   };
   const r = mealRollup(meal);
   assert.equal(r.partial, true);
-  assert.equal(r.pricedItems, 1);
   close(r.totalCost, 10);
 });
 
@@ -78,7 +75,6 @@ test('quantity multiplies both grams and cost', () => {
     nutrition: { calories: 320, proteins: 92 }, items: [item],
   });
   close(r.totalCost, 10);
-  assert.equal(r.servingGrams, 200);
 });
 
 test('a meal without stored nutrition is derived from items, per serving', () => {
@@ -87,12 +83,4 @@ test('a meal without stored nutrition is derived from items, per serving', () =>
   assert.equal(r.hasNutrition, true);
   assert.equal(r.calories, 100);
   assert.equal(r.proteins, 10);
-});
-
-test('servingGrams falls back to the ingredient weight and rounds nothing away', () => {
-  assert.equal(servingGrams({ is_recipe: false, items: [
-    { portion: 250, unit: 'g' }, { portion: 1, unit: 'cup' },
-  ] }), 490);
-  assert.equal(servingGrams({ is_recipe: true, portion: 120, unit: 'g', items: [] }), 120);
-  assert.equal(servingGrams({ is_recipe: false, items: [] }), null);
 });
