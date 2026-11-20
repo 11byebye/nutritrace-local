@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeGtin, parseAmount, parseEnergy, parseNutritionTable,
+  parseNutritionBasis,
   parseProduct, parseSearch, firstSearchGtin, parsePackageWeight,
   parseVolumeNote, parseLabelText, productUrl, searchUrl, canonicalName,
 } from '../server/lib/matsiktet.js';
@@ -108,6 +109,44 @@ test('a sub-row never swallows its parent', () => {
   assert.equal(n.fat, 1);
   assert.equal(n.sugars, 2);
   assert.equal(n.carbohydrates, 9);
+});
+
+test('a per-scoop label is scaled to 100 g', () => {
+  // Live page for EAN 7350014910998 (2026-11-20): header says "per 40 g",
+  // protein 29 g and 140 kcal — the row read 29 P/100 g for two days.
+  const html = `<table class="nutrition-table">
+    <thead><tr><th>Näringsämne</th><th>Värde per 40 g</th></tr></thead>
+    <tbody>
+      <tr><td>Energi</td><td>586 kJ / 140 kcal</td></tr>
+      <tr><td>Fett</td><td>0,8 g</td></tr>
+      <tr><td>– Varav mättat fett</td><td>0,5 g</td></tr>
+      <tr><td>Kolhydrat</td><td>4 g</td></tr>
+      <tr><td>– Varav sockerarter</td><td>4 g</td></tr>
+      <tr><td>Protein</td><td>29 g</td></tr>
+      <tr><td>Salt</td><td>0,2 g</td></tr>
+    </tbody></table>`;
+  assert.deepEqual(parseNutritionBasis(html), { amount: 40, unit: 'g', factor: 2.5 });
+  const n = parseNutritionTable(html);
+  assert.equal(n.proteins, 72.5);
+  assert.equal(n.calories, 350);
+  assert.equal(n.kilojoules, 1465);
+  assert.equal(n.fat, 2);
+  assert.equal(n.carbohydrates, 10);
+  assert.equal(n.sugars, 10);
+  assert.equal(n.salt, 0.5);
+});
+
+test('a per-100 label is left as printed', () => {
+  assert.deepEqual(parseNutritionBasis(PRODUCT_HTML), { amount: 100, unit: 'g', factor: 1 });
+  assert.equal(parseNutritionTable(PRODUCT_HTML).proteins, 20);
+});
+
+test('a basis without a gram figure cannot be normalised', () => {
+  const html = `<table class="nutrition-table">
+    <thead><tr><th>Näringsämne</th><th>Värde per portion</th></tr></thead>
+    <tbody><tr><td>Protein</td><td>29 g</td></tr></tbody></table>`;
+  assert.equal(parseNutritionBasis(html), null);
+  assert.equal(parseNutritionTable(html).proteins, 29);
 });
 
 test('a product page yields name, brand, pack size and nutrition', () => {

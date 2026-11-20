@@ -155,7 +155,31 @@ export function sanitizeNutrition(nutrition) {
   return out;
 }
 
-/** The product page's nutrition table. Energi lands as kJ + kcal. */
+/**
+ * The table's basis, read from its header ("Värde per 100 g", "Värde per 40 g").
+ * Matsiktet prints the label as it stands, and a protein powder's label is
+ * per scoop — 29 g protein per 40 g, not per 100 g (row 735, 2026-11-20).
+ * Returns { amount, unit, factor } with factor = 100/amount, or null when the
+ * header has no gram/millilitre figure (a bare "per portion" cannot be
+ * normalised, so the caller leaves the printed numbers alone).
+ */
+export function parseNutritionBasis(html) {
+  const src = String(html || '');
+  const table = src.match(/<table[^>]*class="[^"]*nutrition-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
+  const scope = table ? table[1] : src;
+  const head = scope.match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
+  const text = fold(head ? textOf(head[1]) : textOf(scope.slice(0, 500)));
+  const m = text.match(/per\s*(\d+(?:[.,]\d+)?)\s*(g|ml)\b/);
+  if (!m) return null;
+  const amount = parseAmount(m[1]);
+  if (!amount || amount <= 0 || amount > 1000) return null;
+  return { amount, unit: m[2], factor: 100 / amount };
+}
+
+/** The product page's nutrition table, normalised to 100 g/ml. Energi lands
+ *  as kJ + kcal. A per-scoop basis is scaled up, then values past the
+ *  physical ceiling are dropped (a scaled 200 g protein is a bad header, not
+ *  a food). */
 export function parseNutritionTable(html) {
   const src = String(html || '');
   const table = src.match(/<table[^>]*class="[^"]*nutrition-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
@@ -171,7 +195,13 @@ export function parseNutritionTable(html) {
       if (nutrition[k] == null && v != null) nutrition[k] = v;
     }
   }
-  return nutrition;
+  const basis = parseNutritionBasis(src);
+  if (basis && basis.factor !== 1) {
+    for (const [k, v] of Object.entries(nutrition)) {
+      nutrition[k] = Math.round(Number(v) * basis.factor * 100) / 100;
+    }
+  }
+  return basis ? sanitizeNutrition(nutrition) : nutrition;
 }
 
 function firstMatch(src, re) {
