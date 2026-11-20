@@ -65,9 +65,14 @@ test('Foods table floors macros and keeps one decimal on money columns', () => {
   assert.match(foods, /macroGrams\(per100\(food, 'fat'\)\)/);
   assert.match(foods, /money1\(price100\(food\)\)/, 'SEK/100 g not one decimal');
   assert.match(foods, /toFixed\(1\)\.replace\('\.', ','\)/, 'one-decimal formatter missing');
+  // SEK per gram of protein, the inverse of the old P/SEK cell (2026-11-20).
+  assert.match(foods, /return price \/ protein/, 'SEK/P must divide price by protein');
+  assert.match(foods, /kronorPerGramProtein\(food\)/);
 
   const meals = read('src/components/foods/MealListTable.svelte');
   assert.match(meals, /macroGrams\(r\.proteins\)/);
   assert.match(meals, /macroGrams\(r\.carbohydrates\)/);
   assert.match(meals, /macroGrams\(r\.fat\)/);
+  assert.match(meals, /sekPerProtein\(r\)/);
+  assert.match(meals, /cost \/ protein/, 'meal SEK/P must divide cost by protein');
 });

@@ -104,9 +104,14 @@
     return value.toFixed(2).replace('.', ',');
   }
 
-  function proteinSek(value) {
-    if (value == null) return '';
-    return Number(value).toFixed(1).replace('.', ',');
+  // SEK per gram of protein (reversed from P/SEK, user 2026-11-20); the
+  // per-serving cost over the per-serving protein, one decimal like the
+  // Foods table.
+  function sekPerProtein(r) {
+    const cost = r?.costPerServing;
+    const protein = r?.proteins;
+    if (cost == null || protein == null || protein <= 0) return '';
+    return Number(cost / protein).toFixed(1).replace('.', ',');
   }
 
   function activate(food) {
@@ -168,7 +173,7 @@
             <td class="col-carbohydrates right">{macroGrams(r.carbohydrates)}</td>
             <td class="col-fat right">{macroGrams(r.fat)}</td>
             <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{priceCell(r.totalCost, r.partial)}</td>
-            <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{proteinSek(r.proteinPerSek)}</td>
+            <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{sekPerProtein(r)}</td>
           </tr>
         {/each}
       </tbody>

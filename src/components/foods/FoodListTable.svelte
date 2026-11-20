@@ -12,7 +12,7 @@
    * Units that are not mass or volume (each, slice) cannot be normalised, so
    * those cells stay blank rather than showing a confident wrong number.
    * The two money columns are mass-only on purpose: the fork's price math
-   * divides by package grams, so an ml food gets no SEK/100 and no P/SEK
+   * divides by package grams, so an ml food gets no SEK/100 and no SEK/P
    * rather than a number that pretends 1 ml = 1 g.
    */
   import { _ } from 'svelte-i18n';
@@ -203,18 +203,20 @@
     return null;
   }
 
-  /** Grams of protein per krona, on the same 100 basis as the other columns.
-   *  Equal to (protein per 100 g) / (price per 100 g), so it needs no package
-   *  size and stays comparable between a 700 g tray and a 250 g one. */
-  function proteinSek(food) {
+  /** Kronor per gram of protein, on the same 100 basis as the other columns.
+   *  The inverse of the old P/SEK cell: (price per 100 g) / (protein per
+   *  100 g), so it needs no package size and a 700 g tray compares with a
+   *  250 g one. Lower is better, which is how a shelf price per kilo reads. */
+  function kronorPerGramProtein(food) {
     const protein = per100(food, 'proteins');
     const price = price100(food);
-    if (protein == null || price == null || price <= 0) return null;
-    return protein / price;
+    if (protein == null || price == null || price <= 0 || protein <= 0) return null;
+    return price / protein;
   }
 
-  // Protein per krona is one decimal, never two (user 2026-11-20).
-  function gramsPerKrona(value) {
+  // SEK per gram of protein, one decimal like the other money column
+  // (user 2026-11-20, reversing P/SEK: lower is the better buy).
+  function kronorPerProtein(value) {
     if (value == null) return '';
     return Number(value).toFixed(1).replace('.', ',');
   }
@@ -254,7 +256,7 @@
     if (key === 'package_g') return Number(food.package_weight_g) || -1;
     if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
-    if (key === 'protein_sek') return proteinSek(food) ?? -1;
+    if (key === 'protein_sek') return kronorPerGramProtein(food) ?? -1;
     return per100(food, key) ?? -1;
   }
 
@@ -359,7 +361,7 @@
             <td class="col-package_g right">{food.package_weight_g ? `${num(food.package_weight_g, 0)} g` : ''}</td>
             <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money1(price100(food))}</td>
-            <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
+            <td class="col-protein_sek right">{kronorPerProtein(kronorPerGramProtein(food))}</td>
           </tr>
         {/each}
       </tbody>
