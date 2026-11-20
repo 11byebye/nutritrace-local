@@ -520,7 +520,8 @@
   const _protTween = tweened(0, { duration: 400, easing: cubicOut });
   const _carbTween = tweened(0, { duration: 400, easing: cubicOut });
   const _fatTween  = tweened(0, { duration: 400, easing: cubicOut });
-  $: _calTween.set(Math.round(totals.calories || 0),       { duration: $disableAnimations ? 0 : 500 });
+  // Day total: nearest 10 kcal, never a decimal (user 2026-11-20).
+  $: _calTween.set(Nutrition.roundKcal10(totals.calories || 0), { duration: $disableAnimations ? 0 : 500 });
   // Animated calorie total formatted for the user's chosen energy unit (kcal/kJ)
   $: _sumEnergy = Nutrition.displayEnergy($_calTween, $energyUnit);
 
@@ -1216,7 +1217,7 @@
     // (it'd stop at the comma and yield 29), truncating meal kcal totals
     // above 1000 to the leading digit(s). The template handles display-side
     // commas via _mtEnergy.value.toLocaleString() below. (Issue #51)
-    return { cal: Math.round(cal), p, c, f };
+    return { cal: Nutrition.roundKcal10(cal), p, c, f };
   }
 
   function getMealItems(entryItems, mealIdx) {
@@ -1230,6 +1231,21 @@
   function formatKcal(item) {
     const calc = Nutrition.calculate(item);
     return Math.round(calc.calories || 0);
+  }
+
+  // Nutrient rows in the two summary sheets. A day or meal total in energy
+  // steps by 10; a single food's contribution is a plain integer. Everything
+  // else keeps one decimal, as before (user 2026-11-20).
+  function _fmtNutrientTotal(n, value) {
+    const v = Number(value) || 0;
+    if (n.id === 'calories') return Nutrition.roundKcal10(v).toLocaleString();
+    if (n.id === 'kilojoules') return Math.round(v).toLocaleString();
+    return (Math.round(v * 10) / 10).toLocaleString();
+  }
+  function _fmtNutrientPart(n, value) {
+    const v = Number(value) || 0;
+    if (n.id === 'calories' || n.id === 'kilojoules') return Math.round(v).toLocaleString();
+    return (Math.round(v * 10) / 10).toLocaleString();
   }
 
   // Date picker — calendar UI lives in src/components/ui/DatePicker.svelte
@@ -2193,7 +2209,7 @@
             </button>
           {/if}
           {#if items.length > 0 && !$diaryShowMacroSummary}
-            {@const _mealKcal = items.reduce((s,it) => s + formatKcal(it), 0)}
+            {@const _mealKcal = Nutrition.roundKcal10(items.reduce((s,it) => s + formatKcal(it), 0))}
             {@const _mealEnergy = Nutrition.displayEnergy(_mealKcal, $energyUnit)}
             <span class="meal-kcal text-3 text-sm">
               {_mealEnergy.value.toLocaleString()} {_mealEnergy.unit}
@@ -3223,7 +3239,7 @@
 
 <!-- Nutrition Summary Modal -->
 {#if $diaryShowNutritionSummary}
-  {@const _nsTotEnergy = Nutrition.displayEnergy(totals.calories || 0, $energyUnit)}
+  {@const _nsTotEnergy = Nutrition.displayEnergy(Nutrition.roundKcal10(totals.calories), $energyUnit)}
   <div use:portal class="sheet-backdrop" role="dialog" aria-modal="true"
     on:click={() => { if (!_sheetLock) diaryShowNutritionSummary.set(false); }} use:closeOnBack={() => diaryShowNutritionSummary.set(false)} on:keydown={() => {}}>
     <div class="ns-sheet" on:click|stopPropagation on:keydown={() => {}}>
@@ -3258,7 +3274,7 @@
         <!-- Macro ring -->
         <div class="ns-ring-wrap">
           <MacroRing
-            calories={totals.calories || 0}
+            calories={Nutrition.roundKcal10(totals.calories)}
             caloriesGoal={caloriesGoalAdjusted}
             fat={totals.fat || 0}
             carbs={totals.carbohydrates || 0}
@@ -3294,7 +3310,7 @@
                  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _nsToggle(n.id); } }}>
               <span>{n.label}</span>
               <span class="ns-row-right">
-                <span class="font-medium">{(Math.round((totals[n.id]||0)*10)/10).toLocaleString()} {n.unit}</span>
+                <span class="font-medium">{_fmtNutrientTotal(n, totals[n.id])} {n.unit}</span>
                 <span class="material-symbols-rounded ns-chev" class:open={isOpen}>chevron_right</span>
               </span>
             </div>
@@ -3311,7 +3327,7 @@
                       <span class="ns-contrib-name">
                         {c.name}{#if c.portion}<span class="ns-contrib-meta"> — {c.portion}</span>{/if}{#if c.isQuick}<span class="ns-contrib-meta"> (Quick entry)</span>{/if}
                       </span>
-                      <span class="ns-contrib-val">{(Math.round(c.value*10)/10).toLocaleString()} {n.unit}</span>
+                      <span class="ns-contrib-val">{_fmtNutrientPart(n, c.value)} {n.unit}</span>
                     </div>
                   {/each}
                   {#if _nsContributors.hiddenCount > 0}
@@ -3322,7 +3338,7 @@
                         + {_nsContributors.hiddenCount} more {_nsContributors.hiddenCount === 1 ? 'item' : 'items'}
                         <span class="ns-contrib-meta">(tap to expand)</span>
                       </span>
-                      <span class="ns-contrib-val">{(Math.round(_nsContributors.hiddenSum*10)/10).toLocaleString()} {n.unit}</span>
+                      <span class="ns-contrib-val">{_fmtNutrientPart(n, _nsContributors.hiddenSum)} {n.unit}</span>
                     </div>
                   {:else if _nsContributors.allShown && _nsContributors.visible.length > 5}
                     <button class="ns-contrib-collapse" on:click|stopPropagation={() => _nsShowAll = false}>
@@ -3342,7 +3358,7 @@
 <!-- Per-meal nutrition totals sheet -->
 <Sheet open={mealTotalsIdx != null} title={mealTotalsIdx != null ? `${meals[mealTotalsIdx]} totals` : ''}
   on:close={() => mealTotalsIdx = null}>
-  {@const _nsMealEnergy = Nutrition.displayEnergy(_mealTotals.calories || 0, $energyUnit)}
+  {@const _nsMealEnergy = Nutrition.displayEnergy(Nutrition.roundKcal10(_mealTotals.calories), $energyUnit)}
   <div class="ns-body">
     <div class="ns-macros">
       <div class="ns-macro-pill" style="background:var(--macro-protein-dim)">
@@ -3366,7 +3382,7 @@
       {#each NUTRIMENTS.filter(n => ($diaryShowAllNutrients ? true : n.default) && (_mealTotals[n.id] || 0) > 0) as n}
         <div class="ns-row">
           <span>{n.label}</span>
-          <span class="font-medium">{(Math.round((_mealTotals[n.id]||0)*10)/10).toLocaleString()} {n.unit}</span>
+          <span class="font-medium">{_fmtNutrientTotal(n, _mealTotals[n.id])} {n.unit}</span>
         </div>
       {/each}
     </div>

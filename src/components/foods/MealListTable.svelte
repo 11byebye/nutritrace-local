@@ -79,10 +79,13 @@
     return list;
   })();
 
-  function show(value, digits = 1) {
+  // Macros are whole grams, rounded DOWN (user 2026-11-20), matching the
+  // Foods table beside it.
+  function macroGrams(value) {
     if (value == null) return '';
-    if (Number.isInteger(value)) return String(value);
-    return value.toFixed(digits).replace('.', ',');
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '';
+    return String(Math.floor(n));
   }
 
   function grams(value) {
@@ -103,7 +106,7 @@
 
   function proteinSek(value) {
     if (value == null) return '';
-    return (value < 1 ? value.toFixed(2) : value.toFixed(1)).replace('.', ',');
+    return Number(value).toFixed(1).replace('.', ',');
   }
 
   function activate(food) {
@@ -161,9 +164,9 @@
             </td>
             <td class="col-weight right">{grams(r.totalGrams)}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
-            <td class="col-proteins right">{show(r.proteins)}</td>
-            <td class="col-carbohydrates right">{show(r.carbohydrates)}</td>
-            <td class="col-fat right">{show(r.fat)}</td>
+            <td class="col-proteins right">{macroGrams(r.proteins)}</td>
+            <td class="col-carbohydrates right">{macroGrams(r.carbohydrates)}</td>
+            <td class="col-fat right">{macroGrams(r.fat)}</td>
             <td class="col-price right" title={r.partial ? $_('foods.list.partial_note') : null}>{priceCell(r.totalCost, r.partial)}</td>
             <td class="col-protein_sek right" title={r.partial ? $_('foods.list.partial_note') : null}>{proteinSek(r.proteinPerSek)}</td>
           </tr>

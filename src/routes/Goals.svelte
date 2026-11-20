@@ -544,10 +544,14 @@
    // missing value doesn't render a lonely dash that reads as
    // 'data missing' on the goal-setting page.
   function _fmtProgress(cur, tgt, unit) {
-    const t = (tgt ?? 0).toLocaleString();
     const u = unit || '';
+    // Energy never shows decimals (user 2026-11-20: "never decimals on kcal
+    // values"); grams and the rest keep their one decimal.
+    const isEnergy = /kcal|kJ/i.test(u);
+    const fmt = v => (isEnergy ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString();
+    const t = fmt(tgt ?? 0);
     if (cur == null) return u ? `${t} ${u}` : t;
-    const c = (Math.round(cur * 10) / 10).toLocaleString();
+    const c = fmt(cur);
     return u ? `${c} / ${t} ${u}` : `${c} / ${t}`;
   }
 

@@ -213,15 +213,26 @@
     return protein / price;
   }
 
+  // Protein per krona is one decimal, never two (user 2026-11-20).
   function gramsPerKrona(value) {
     if (value == null) return '';
-    return (value < 1 ? value.toFixed(2) : value.toFixed(1)).replace('.', ',');
+    return Number(value).toFixed(1).replace('.', ',');
   }
 
-  function show(value, digits = 1) {
+  // Macros are whole grams, rounded DOWN (user 2026-11-20: "round down to
+  // whole grams (no decimals) on protein, carbs, fat"). 12.9 g reads 12 g.
+  function macroGrams(value) {
     if (value == null) return '';
-    if (Number.isInteger(value)) return String(value);
-    return value.toFixed(digits).replace('.', ',');
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '';
+    return String(Math.floor(n));
+  }
+
+  // Money in the per-100 column is one decimal (user 2026-11-20); the pack
+  // price keeps its two decimals because that is what the shelf says.
+  function money1(value) {
+    if (value == null) return '';
+    return Number(value).toFixed(1).replace('.', ',');
   }
 
   function num(value, digits = 0) {
@@ -342,12 +353,12 @@
             </td>
             <td class="col-category">{catText(food)}</td>
             <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
-            <td class="col-proteins right">{show(per100(food, 'proteins'))}</td>
-            <td class="col-carbohydrates right">{show(per100(food, 'carbohydrates'))}</td>
-            <td class="col-fat right">{show(per100(food, 'fat'))}</td>
+            <td class="col-proteins right">{macroGrams(per100(food, 'proteins'))}</td>
+            <td class="col-carbohydrates right">{macroGrams(per100(food, 'carbohydrates'))}</td>
+            <td class="col-fat right">{macroGrams(per100(food, 'fat'))}</td>
             <td class="col-package_g right">{food.package_weight_g ? `${num(food.package_weight_g, 0)} g` : ''}</td>
             <td class="col-price right">{money(Number(food.price) || null)}</td>
-            <td class="col-price_100 right">{money(price100(food))}</td>
+            <td class="col-price_100 right">{money1(price100(food))}</td>
             <td class="col-protein_sek right">{gramsPerKrona(proteinSek(food))}</td>
           </tr>
         {/each}

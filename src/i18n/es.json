@@ -360,7 +360,8 @@
       "logged": "Registrado",
       "max": "Máximo",
       "min": "Mínimo",
-      "average": "Promedio"
+      "average": "Promedio",
+      "goal": "Objetivo"
     },
     "range": {
       "last_7d": "Últimos 7 d",

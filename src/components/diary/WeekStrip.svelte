@@ -230,7 +230,8 @@
         const water = entry.water || [];
         const water_ml = water.reduce((s, l) => s + (Number(l.amount) || 0), 0);
         map.set(entry.date, {
-          kcal: Math.round(totals.calories || 0),
+          // Day totals read in steps of 10 kcal (user 2026-11-20).
+          kcal: Nutrition.roundKcal10(totals.calories || 0),
           protein: Math.round(totals.proteins || 0),
           carbs: Math.round(totals.carbohydrates || 0),
           fat: Math.round(totals.fat || 0),

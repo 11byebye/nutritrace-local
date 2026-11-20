@@ -76,6 +76,19 @@
   let data   = [];    // [{ date, val }]
   let loading = false;
   let summary = null; // { avg, min, max, total, daysWithData }
+
+  // Energy never shows decimals (user 2026-11-20: "never decimals on kcal
+  // values … statistics kcal values per day: round all to nearest 10 kcal").
+  // The calorie chart therefore steps by 10 in the display unit, and kJ too;
+  // every other metric keeps the one decimal it already had.
+  function statRound(metricId, v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return v;
+    if (metricId === 'calories' || metricId === 'calories_out') {
+      return Math.round(n / 10) * 10;
+    }
+    return Math.round(n * 10) / 10;
+  }
   // #207: independent of `summary` because completion is a per-day
   // property of the diary row itself, not of the currently viewed
   // metric. Populated at the end of loadData() so it stays in sync
@@ -368,7 +381,7 @@
                 const totals = Nutrition.sum(items.map(i => Nutrition.calculate(i)));
                 let raw = totals[metric] ?? 0;
                 if (metric === 'calories' && $energyUnit === 'kJ') raw = Nutrition.kcalToKj(raw);
-                val = Math.round(raw * 10) / 10;
+                val = statRound(metric, raw);
               }
               // else: entry row exists (e.g. water-only day) but no food
               // → val stays null so the day doesn't count toward nutrient
@@ -400,10 +413,10 @@
     if (withData.length) {
       const vals = withData.map(d => d.val);
       summary = {
-        avg:          Math.round(vals.reduce((a,b)=>a+b,0) / vals.length * 10) / 10,
-        min:          Math.round(Math.min(...vals) * 10) / 10,
-        max:          Math.round(Math.max(...vals) * 10) / 10,
-        total:        Math.round(vals.reduce((a,b)=>a+b,0) * 10) / 10,
+        avg:          statRound(metric, vals.reduce((a,b)=>a+b,0) / vals.length),
+        min:          statRound(metric, Math.min(...vals)),
+        max:          statRound(metric, Math.max(...vals)),
+        total:        statRound(metric, vals.reduce((a,b)=>a+b,0)),
         daysWithData: withData.length,
       };
     } else {
@@ -537,6 +550,7 @@
         if (density) _goalVal = Math.round(calGoal * _goalVal / 100 / density);
       }
       if (_goalVal != null && metric === 'calories' && $energyUnit === 'kJ') _goalVal = Math.round(Nutrition.kcalToKj(_goalVal));
+      if (_goalVal != null) _goalVal = statRound(metric, _goalVal);
     }
 
     // Goal line — always type 'line' even in bar chart mode
@@ -764,6 +778,7 @@
       if (density) gv = Math.round(calGoal * gv / 100 / density);
     }
     if (gv != null && metric === 'calories' && $energyUnit === 'kJ') gv = Math.round(Nutrition.kcalToKj(gv));
+    if (gv != null) gv = statRound(metric, gv);
     return gv;
   })();
   $: _goalIsMin = (() => {
@@ -1065,6 +1080,16 @@
             <span class="summary-unit">{_metricUnit}</span>
             <span class="summary-lbl">{$_('statistics_page.summary.max')}</span>
           </div>
+          {#if _goalValReactive != null}
+            <!-- The target sits right of MAX (user 2026-11-20), so the day's
+                 peak and the goal read as a pair instead of the goal living
+                 only in the chart's dashed line. -->
+            <div class="summary-item">
+              <span class="summary-val">{_goalValReactive.toLocaleString()}</span>
+              <span class="summary-unit">{_metricUnit}</span>
+              <span class="summary-lbl">{$_('statistics_page.summary.goal')}</span>
+            </div>
+          {/if}
           <div class="summary-item">
             <span class="summary-val">{summary.daysWithData.toLocaleString()}</span>
             <span class="summary-unit">{$_('statistics_page.summary.days_unit')}</span>
@@ -1219,6 +1244,13 @@
         <span class="stats-rail-kpi-lbl">{$_('statistics_page.summary.max')}</span>
         <span class="stats-rail-kpi-val">{summary.max.toLocaleString()} <span class="stats-rail-kpi-unit">{_metricUnit}</span></span>
       </div>
+      {#if _goalValReactive != null}
+        <!-- Target right under MAX, mirroring the mobile summary card. -->
+        <div class="stats-rail-kpi">
+          <span class="stats-rail-kpi-lbl">{$_('statistics_page.summary.goal')}</span>
+          <span class="stats-rail-kpi-val">{_goalValReactive.toLocaleString()} <span class="stats-rail-kpi-unit">{_metricUnit}</span></span>
+        </div>
+      {/if}
       <div class="stats-rail-kpi">
         <span class="stats-rail-kpi-lbl">{$_('statistics_page.summary.logged')}</span>
         <span class="stats-rail-kpi-val">{summary.daysWithData.toLocaleString()} <span class="stats-rail-kpi-unit">{$_('statistics_page.summary.days_unit')}</span></span>
@@ -1517,7 +1549,7 @@
 
   /* Summary */
   .summary-card { padding: 16px 12px; }
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 4px; }
   .summary-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .summary-val  { font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
   .summary-unit { font-size: 10px; font-weight: 600; color: var(--accent); opacity: 0.6; }

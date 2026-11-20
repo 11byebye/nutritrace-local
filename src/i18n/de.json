@@ -2290,7 +2290,8 @@
       "min": "Min",
       "max": "Max",
       "logged": "Erfasst",
-      "days_unit": "Tage"
+      "days_unit": "Tage",
+      "goal": "Ziel"
     },
     "empty": {
       "no_data": "Keine Daten für diesen Zeitraum",

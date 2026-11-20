@@ -204,6 +204,15 @@ const Nutrition = {
   kcalToKj(kcal) { return (parseFloat(kcal) || 0) * 4.184; },
   kjToKcal(kj)   { return (parseFloat(kj) || 0) / 4.184; },
 
+  /** Meal and day totals read in steps of 10 kcal (user 2026-11-20: never
+   *  decimals on kcal, and every meal or day total lands on the nearest 10).
+   *  A single food row keeps its own integer kcal; only the sums step by 10,
+   *  because a total does not carry more precision than the log behind it. */
+  roundKcal10(kcal) {
+    const n = parseFloat(kcal) || 0;
+    return Math.round(n / 10) * 10;
+  },
+
   /** Format a kcal value for display in the user's chosen energy unit.
    *  Internal storage is always kcal; this is purely a display-layer
    *  conversion.
