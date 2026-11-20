@@ -1084,9 +1084,21 @@
     editorState.foodsActiveTab = activeTab;
   }
 
-  function openEditor(item, store) {
+  async function openEditor(item, store) {
     _saveScrollState();
-    editorState.foodPrefill = item ? { ...item } : null;
+    let prefill = item ? { ...item } : null;
+    // Edit the server's copy, not this tab's. A list loaded before a repair
+    // (or before another device changed the row) would otherwise be saved
+    // back whole, nutrition included — on 2026-11-20 a corrected protein
+    // powder reverted to 29 g the moment only its price was edited. The
+    // list copy still supplies client-only fields (owner, image).
+    if (item?.id) {
+      try {
+        const fresh = await NtApi.getFood(item.id);
+        if (fresh) prefill = { ...item, ...fresh };
+      } catch { /* offline: fall back to the list copy */ }
+    }
+    editorState.foodPrefill = prefill;
     editorState.foodStore   = store || currentStore;
     if (pickMode) editorState.foodDiaryCtx = { date: pickDate, meal: pickMeal };
     push('/foods/edit');
