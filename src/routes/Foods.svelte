@@ -21,7 +21,8 @@
   import { editorState, clearFoodEditorState } from '../stores/editorState.js';
   import { DB, localDateStr } from '../lib/db.js';
   import {
-    lookupGtin, lookupPrice, lookupIcaSearch, lookupIca, foodFromGtin, foodFromIca, packGrams,
+    lookupGtin, lookupPrice, lookupIcaSearch, lookupIca, lookupWillysSearch, lookupWillys,
+    foodFromGtin, foodFromIca, foodFromWillys, packGrams,
   } from '../lib/se-lookup.js';
   import { loadEntry } from '../stores/diary.js';
   import { API, USDA, NtApi } from '../lib/api.js';
@@ -138,6 +139,7 @@
     { value: 'local',  label: $_('foods.sources.local')  },
     ...(activeTab === 0 ? [{ value: 'matsiktet', label: 'Matsiktet' }] : []),
     ...(activeTab === 0 ? [{ value: 'ica', label: 'ICA' }] : []),
+    ...(activeTab === 0 ? [{ value: 'willys', label: 'Willys' }] : []),
     ...(activeTab === 0 && $offEnabled    ? [{ value: 'off',    label: 'OFF' }] : []),
     ...(activeTab === 0 && $usdaEnabled   ? [{ value: 'usda',   label: 'USDA' }] : []),
     ...(activeTab === 0 && _mealieEnabled ? [{ value: 'mealie', label: 'Mealie' }] : []),
@@ -264,6 +266,7 @@
     local:  pinnedSources.size > 0 ? pinnedSources.has('local')  : searchSource === 'local',
     matsiktet: pinnedSources.size > 0 ? pinnedSources.has('matsiktet') : searchSource === 'matsiktet',
     ica:    pinnedSources.size > 0 ? pinnedSources.has('ica')    : searchSource === 'ica',
+    willys: pinnedSources.size > 0 ? pinnedSources.has('willys') : searchSource === 'willys',
     off:    pinnedSources.size > 0 ? pinnedSources.has('off')    : searchSource === 'off',
     usda:   pinnedSources.size > 0 ? pinnedSources.has('usda')   : searchSource === 'usda',
     mealie: pinnedSources.size > 0 ? pinnedSources.has('mealie') : searchSource === 'mealie',
@@ -309,6 +312,18 @@
       package_weight_g: r.package_g ?? null,
       price: Number.isFinite(Number(r.price)) ? Number(r.price) : null,
       notes: 'ica',
+    }));
+  }
+
+  /** Willys search hits carry name, brand, pack and price; the macros and the
+   *  EAN live on the product page, so one tap loads the complete row. */
+  function _willysItems(rows) {
+    return (rows || []).map(r => ({
+      willysCode: r.code, name: r.name, brand: r.brand || undefined,
+      nutrition: {}, unit: 'g', portion: 100, noValues: true,
+      package_weight_g: r.package_g ?? null,
+      price: Number.isFinite(Number(r.price)) ? Number(r.price) : null,
+      notes: 'willys',
     }));
   }
 
@@ -447,6 +462,7 @@
   let offResults = [];
   let matsiktetResults = [];
   let icaResults = [];
+  let willysResults = [];
   let usdaResults = [];
   let mealieResults = [];
   // Open Food Facts, USDA, Mealie and CookTrace all need the network. When
@@ -700,6 +716,7 @@
     ...(_isSourceActive('ctpantry') ? (ctPantryResults || []).map(item => ({ source: 'ctpantry', item })) : []),
     ...(_isSourceActive('matsiktet') ? (matsiktetResults || []).map(item => ({ source: 'matsiktet', item })) : []),
     ...(_isSourceActive('ica') ? (icaResults || []).map(item => ({ source: 'ica', item })) : []),
+    ...(_isSourceActive('willys') ? (willysResults || []).map(item => ({ source: 'willys', item })) : []),
     ...(_isSourceActive('off')    ? (offResults    || []).filter(f => !offTiersFiltered  || offTiersActive.has(_bucketOff(f.completeness))).map(item => ({ source: 'off',    item })) : []),
     ...(_isSourceActive('usda')   ? (usdaResults   || []).filter(f => !usdaTiersFiltered || usdaTiersActive.has(f.dataType || 'unknown')).map(item => ({ source: 'usda',   item })) : []),
   ];
@@ -908,6 +925,7 @@
     offResults = [];
     matsiktetResults = [];
     icaResults = [];
+    willysResults = [];
     usdaResults = [];
     mealieResults = [];
     cooktraceResults = [];
@@ -947,6 +965,16 @@
           apiHasMore = false;
           apiPage = 1;
           if (r?.reason === 'token') showError('ICA needs its token refreshed on the server');
+        } catch { apiResults = []; apiTotalHits = 0; apiHasMore = false; }
+        finally { loading = false; }
+      } else if (src === 'willys') {
+        try {
+          loading = true;
+          const r = await lookupWillysSearch(search);
+          apiResults = _willysItems(r?.items);
+          apiTotalHits = apiResults.length;
+          apiHasMore = false;
+          apiPage = 1;
         } catch { apiResults = []; apiTotalHits = 0; apiHasMore = false; }
         finally { loading = false; }
       } else if (src === 'off') {
@@ -1018,6 +1046,9 @@
           jobs.push(lookupIcaSearch(search)
             .then(r => { icaResults = _icaItems(r?.items); })
             .catch(() => { icaResults = []; }));
+          jobs.push(lookupWillysSearch(search)
+            .then(r => { willysResults = _willysItems(r?.items); })
+            .catch(() => { willysResults = []; }));
         }
         if ($offEnabled && activeTab === 0) {
           jobs.push(API.searchByNameWithMeta(search, 1, ALL_MODE_PAGE_SIZE)
@@ -1235,6 +1266,19 @@
         if (food.price == null && Number.isFinite(Number(searchPrice))) food.price = Number(searchPrice);
       } else {
         showError('Could not load the ICA numbers — the token may need a refresh');
+        return;
+      }
+    }
+    if (sourceHint === 'willys' && food?.willysCode && !food._willysHydrated) {
+      // One detail call returns the printed macros, the pack, the price and
+      // the EAN, so a Willys row leaves the editor ready to save.
+      const p = await lookupWillys(food.willysCode);
+      if (p?.found) {
+        const searchPrice = food.price;
+        food = { ...food, ...foodFromWillys(p), _willysHydrated: true };
+        if (food.price == null && Number.isFinite(Number(searchPrice))) food.price = Number(searchPrice);
+      } else {
+        showError('Could not load the Willys numbers — try again');
         return;
       }
     }
@@ -2433,7 +2477,7 @@
                 {:else}
                   <div class="food-thumb-placeholder">
                     <span class="material-symbols-rounded">
-                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'matsiktet' || source === 'ica'}storefront{:else if source === 'off'}public{:else}{_tabIcon}{/if}
+                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'matsiktet' || source === 'ica' || source === 'willys'}storefront{:else if source === 'off'}public{:else}{_tabIcon}{/if}
                     </span>
                   </div>
                 {/if}
@@ -2493,6 +2537,7 @@
                   {:else if source === 'usda'}USDA
                   {:else if source === 'matsiktet'}Matsiktet
                   {:else if source === 'ica'}ICA
+                  {:else if source === 'willys'}Willys
                   {:else}OFF{/if}
                 </span>
               </button>
@@ -2523,6 +2568,7 @@
             {#if activeTab === 0}
               <span class="asc-chip"><span class="asc-dot asc-matsiktet"></span>Matsiktet · {matsiktetResults.length}</span>
               <span class="asc-chip"><span class="asc-dot asc-ica"></span>ICA · {icaResults.length}</span>
+              <span class="asc-chip"><span class="asc-dot asc-willys"></span>Willys · {willysResults.length}</span>
             {/if}
             {#if $offEnabled}
               <span class="asc-chip"><span class="asc-dot asc-off"></span>OFF · {#if _sourcesOffline}{$_('foods.offline.source')}{:else}{offResults.length}{#if _allOffTotal > offResults.length} of {_allOffTotal.toLocaleString()}{/if}{/if}</span>
@@ -2736,7 +2782,7 @@
                     <img class="food-thumb" src={food.imgUrl} alt="" loading="lazy" referrerpolicy="no-referrer" on:error={e => e.target.style.display='none'} />
                   {:else}
                     <div class="food-thumb-placeholder">
-                      <span class="material-symbols-rounded">{searchSource === 'matsiktet' || searchSource === 'ica' ? 'storefront' : searchSource === 'usda' ? 'science' : 'public'}</span>
+                      <span class="material-symbols-rounded">{searchSource === 'matsiktet' || searchSource === 'ica' || searchSource === 'willys' ? 'storefront' : searchSource === 'usda' ? 'science' : 'public'}</span>
                     </div>
                   {/if}
                   <div class="food-info">
@@ -3592,6 +3638,8 @@
   .asc-dot.asc-matsiktet { background: rgb(250, 204, 21); }
   .source-badge-ica    { background: rgba(220, 38, 38, 0.14); color: rgb(185, 28, 28); }
   .asc-dot.asc-ica     { background: rgb(220, 38, 38); }
+  .source-badge-willys { background: rgba(159, 18, 57, 0.14); color: rgb(159, 18, 57); }
+  .asc-dot.asc-willys  { background: rgb(159, 18, 57); }
   /* Both CookTrace surfaces (recipes on the Recipes tab, pantry rows on
      the Foods tab) share one badge colour: same upstream app, and the
      tab already disambiguates which endpoint produced the row. */

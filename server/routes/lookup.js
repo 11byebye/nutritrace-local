@@ -7,6 +7,8 @@
  *   GET  /api/lookup/search?q=    name -> [{ gtin, name, brand }]
  *   GET  /api/lookup/ica/search?q= name -> ICA rows (no macros, no EAN)
  *   GET  /api/lookup/ica/:code    one ICA product id -> a food row
+ *   GET  /api/lookup/willys/search?q= name -> Willys rows (no macros, no EAN)
+ *   GET  /api/lookup/willys/:code one Willys code -> a complete food row
  *   POST /api/lookup/label        one label photo -> a food row (tesseract OCR)
  *
  * Why Matsiktet first: it carries the Swedish own-brands OFF is thin on
@@ -32,6 +34,7 @@ import { priceFor } from '../lib/store-price.js';
 import {
   icaSearchRows, icaProductPayload, rowFromIca, icaShelfPrice, IcaChallengeError,
 } from '../lib/ica.js';
+import { willysSearchRows, willysProduct, rowFromWillys, willysShelfPrice } from '../lib/willys.js';
 import { readLabel } from '../lib/label-ocr.js';
 
 const router = Router();
@@ -119,6 +122,32 @@ function icaPriceSet(code, value) {
     if (oldest !== undefined) _icaPriceCache.delete(oldest);
   }
   _icaPriceCache.set(code, { at: Date.now(), value });
+}
+
+// Willys gets the same two clocks: a search answer for 30 minutes, a product
+// row for a month, and its price for six hours.
+const WILLYS_SEARCH_TTL_MS = 30 * 60 * 1000;
+const WILLYS_PRICE_TTL_MS = 6 * 60 * 60 * 1000;
+const WILLYS_CACHE_MAX = 500;
+const _willysSearchCache = new Map();
+const _willysPriceCache = new Map();
+
+function timedCached(map, key, ttl) {
+  const hit = map.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > ttl) {
+    map.delete(key);
+    return undefined;
+  }
+  return hit.value;
+}
+
+function timedSet(map, key, value) {
+  if (map.size >= WILLYS_CACHE_MAX) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+  map.set(key, { at: Date.now(), value });
 }
 
 function icaSearchCached(key) {
@@ -289,6 +318,61 @@ router.get('/ica/:code', async (req, res) => {
     }
     logger.warn({ err: err?.message }, 'ica product lookup failed');
     res.status(502).json({ found: false, error: 'ica unavailable' });
+  }
+});
+
+/**
+ * Willys' storefront by name. Search rows carry name, brand, pack and price;
+ * the macros, the EAN and the exact price come from one product call on tap.
+ */
+router.get('/willys/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ items: [] });
+  const key = q.toLowerCase();
+  const cached = timedCached(_willysSearchCache, key, WILLYS_SEARCH_TTL_MS);
+  if (cached) return res.json({ items: cached });
+  try {
+    const items = (await willysSearchRows(q)).slice(0, 20)
+      .map(({ code, name, brand, pack, package_g, amount }) => ({
+        code, name, brand, pack, package_g, price: amount,
+      }));
+    timedSet(_willysSearchCache, key, items);
+    res.json({ items });
+  } catch (err) {
+    logger.warn({ err: err?.message }, 'willys search failed');
+    res.status(502).json({ items: [], error: 'willys unavailable' });
+  }
+});
+
+/** One Willys product code -> a food row on the 100 g basis. */
+router.get('/willys/:code', async (req, res) => {
+  const code = String(req.params.code || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(code)) {
+    return res.status(400).json({ found: false, error: 'invalid id' });
+  }
+  const cached = cacheGet(`willys:p:${code}`);
+  if (cached) {
+    let price = timedCached(_willysPriceCache, code, WILLYS_PRICE_TTL_MS);
+    if (price === undefined) {
+      try {
+        price = await willysShelfPrice(code);
+        timedSet(_willysPriceCache, code, price);
+      } catch (err) {
+        price = cached.price ?? null;
+        logger.info({ err: err?.message, code }, 'willys price refresh failed; serving last known');
+      }
+    }
+    return res.json({ ...cached, price });
+  }
+  try {
+    const row = rowFromWillys(await willysProduct(code), { code });
+    if (!row.found) return res.status(422).json({ found: false, reason: 'no nutrition table' });
+    timedSet(_willysPriceCache, code, row.price ?? null);
+    cacheSet(`willys:p:${code}`, row);
+    res.json(row);
+  } catch (err) {
+    logger.warn({ err: err?.message }, 'willys product lookup failed');
+    res.status(502).json({ found: false, error: 'willys unavailable' });
   }
 });
 

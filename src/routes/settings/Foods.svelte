@@ -60,6 +60,7 @@
           <option value="local">{$_('foods.sources.local')}</option>
           <option value="matsiktet">Matsiktet</option>
           <option value="ica">ICA</option>
+          <option value="willys">Willys</option>
           {#if $offEnabled}<option value="off">OFF</option>{/if}
           {#if $usdaEnabled}<option value="usda">USDA</option>{/if}
           {#if _mealieEnabled}<option value="mealie">Mealie</option>{/if}
