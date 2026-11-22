@@ -16,17 +16,16 @@
  * price when it has one (kr/kg or kr/l). A miss is a normal answer: the food
  * row still carries its macros.
  */
+import { icaSearchRows, icaStores } from './ica.js';
+
+export { packGrams } from './ica.js';
+
 // Loaded on first network call so the parsers and matchers stay importable
 // from a test that has no server dependencies installed.
 let _guardPromise = null;
 const guard = () => (_guardPromise ||= import('./ssrf-guard.js').then(m => m.fetchChecked));
 
 const WILLYS = 'https://www.willys.se';
-const ICA_STORE_API = 'https://handla.ica.se';
-const ICA_WEB_API = 'https://handlaprivatkund.ica.se';
-// The WAF token is bound to this UA: it is minted by `nt-ingest ica-token`
-// with the same string, so keep the two in step.
-const ICA_UA = 'Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0';
 const WILLYS_UA = 'Mozilla/5.0 (X11; Linux x86_64) NutriTrace/1.0';
 
 const SEARCH_CANDIDATES = 6;
@@ -65,16 +64,6 @@ export function sameEan(a, b) {
   const ka = eanKey(a);
   const kb = eanKey(b);
   return !!ka && ka === kb;
-}
-
-/** "700g", "0,7kg", "1,5 l" -> grams; null when the unit is a volume. */
-export function packGrams(raw) {
-  const s = foldText(raw).replace(',', '.');
-  const kg = s.match(/(\d+(?:\.\d+)?)\s*kg\b/);
-  if (kg) return Math.round(Number(kg[1]) * 1000);
-  const g = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
-  if (g) return Number(g[1]);
-  return null;
 }
 
 /** Words that carry no identity, dropped before comparing product names. */
@@ -158,56 +147,8 @@ async function willysPrice({ barcode, name, brand, package_g }) {
 }
 
 // ── ICA ──────────────────────────────────────────────────────────────────
-
-let _icaStores = null;
-
-/** The nearest online stores, in the order the API answers them. */
-async function icaStores() {
-  if (_icaStores) return _icaStores;
-  const zip = String(process.env.NT_ICA_ZIP || '51440').replace(/\D/g, '') || '51440';
-  const data = await fetchJson(`${ICA_STORE_API}/api/store/v1?zip=${encodeURIComponent(zip)}`, { ua: ICA_UA });
-  // Larger formats first: a Kvantum carries the own-brands a Nära does not,
-  // and the token is metered, so the first store should usually be the hit.
-  const rank = { kvantum: 0, supermarket: 1, maxi: 2, nara: 3 };
-  const rows = [...(data?.forPickupDelivery || []), ...(data?.forHomeDelivery || [])]
-    .filter(s => s?.accountId)
-    .map((s, i) => ({
-      account: String(s.accountId),
-      name: s.name || 'ICA',
-      _rank: rank[String(s.storeFormat || '').toLowerCase()] ?? 4,
-      _i: i,
-    }))
-    .sort((a, b) => a._rank - b._rank || a._i - b._i);
-  _icaStores = rows.slice(0, 3).map(({ account, name }) => ({ account, name }));
-  return _icaStores;
-}
-
-async function icaRows(account, query, cookie) {
-  const params = new URLSearchParams({
-    q: query, tag: 'web', maxPageSize: '10', maxProductsToDecorate: '10',
-  });
-  const data = await fetchJson(
-    `${ICA_WEB_API}/stores/${account}/api/webproductpagews/v6/product-pages/search?${params}`,
-    { ua: ICA_UA, cookie },
-  );
-  if (!data) return null;
-  const out = [];
-  for (const group of data.productGroups || []) {
-    let products = group.decoratedProducts || [];
-    if (!Array.isArray(products)) products = products.products || [];
-    for (const p of products) {
-      if (!p?.name) continue;
-      out.push({
-        name: p.name,
-        brand: p.brand || null,
-        package_g: packGrams(p.packSizeDescription),
-        amount: Number(p.price?.amount),
-        pack: p.packSizeDescription || null,
-      });
-    }
-  }
-  return out;
-}
+// The store list and the search call live in ica.js, shared with the Foods
+// tab's ICA source. This file only owns the name-match guard.
 
 /**
  * Name match only: ICA has no EAN, so the guard in looksSame is the whole
@@ -218,13 +159,12 @@ async function icaRows(account, query, cookie) {
  * a matching row rather than asking every store for every scan.
  */
 async function icaPrice({ name, brand, package_g }) {
-  const cookie = String(process.env.NT_ICA_COOKIE || '').trim();
-  if (!cookie) return null;
+  if (!String(process.env.NT_ICA_COOKIE || '').trim()) return null;
   const query = cleanQuery(name).slice(0, 80);
   if (!query) return null;
   const stores = await icaStores();
   for (const store of stores) {
-    const rows = await icaRows(store.account, query, cookie);
+    const rows = await icaSearchRows(query, store.account).catch(() => null);
     if (!rows?.length) continue;
     const hit = rows.find(r => Number.isFinite(r.amount) && r.amount > 0
       && looksSame({ name, brand, package_g }, r));

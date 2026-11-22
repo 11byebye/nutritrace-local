@@ -20,7 +20,9 @@
   import { staleIngredientNames } from '../lib/stale-ingredients.js';
   import { editorState, clearFoodEditorState } from '../stores/editorState.js';
   import { DB, localDateStr } from '../lib/db.js';
-  import { lookupGtin, lookupPrice, foodFromGtin, packGrams } from '../lib/se-lookup.js';
+  import {
+    lookupGtin, lookupPrice, lookupIcaSearch, lookupIca, foodFromGtin, foodFromIca, packGrams,
+  } from '../lib/se-lookup.js';
   import { loadEntry } from '../stores/diary.js';
   import { API, USDA, NtApi } from '../lib/api.js';
   import { Nutrition } from '../lib/nutrition.js';
@@ -135,6 +137,7 @@
   $: _perSourceOptions = [
     { value: 'local',  label: $_('foods.sources.local')  },
     ...(activeTab === 0 ? [{ value: 'matsiktet', label: 'Matsiktet' }] : []),
+    ...(activeTab === 0 ? [{ value: 'ica', label: 'ICA' }] : []),
     ...(activeTab === 0 && $offEnabled    ? [{ value: 'off',    label: 'OFF' }] : []),
     ...(activeTab === 0 && $usdaEnabled   ? [{ value: 'usda',   label: 'USDA' }] : []),
     ...(activeTab === 0 && _mealieEnabled ? [{ value: 'mealie', label: 'Mealie' }] : []),
@@ -260,6 +263,7 @@
   $: activeChips = {
     local:  pinnedSources.size > 0 ? pinnedSources.has('local')  : searchSource === 'local',
     matsiktet: pinnedSources.size > 0 ? pinnedSources.has('matsiktet') : searchSource === 'matsiktet',
+    ica:    pinnedSources.size > 0 ? pinnedSources.has('ica')    : searchSource === 'ica',
     off:    pinnedSources.size > 0 ? pinnedSources.has('off')    : searchSource === 'off',
     usda:   pinnedSources.size > 0 ? pinnedSources.has('usda')   : searchSource === 'usda',
     mealie: pinnedSources.size > 0 ? pinnedSources.has('mealie') : searchSource === 'mealie',
@@ -292,6 +296,19 @@
     return (rows || []).map(r => ({
       id: r.gtin, barcode: r.gtin, name: r.name, brand: r.brand || undefined,
       nutrition: {}, unit: 'g', portion: 100, noValues: true,
+    }));
+  }
+
+  /** ICA hits carry name, brand, pack and shelf price; ICA publishes no
+   *  nutrition in the search payload, so the macros load on tap (one cached
+   *  product lookup) and the row says so until then. */
+  function _icaItems(rows) {
+    return (rows || []).map(r => ({
+      icaCode: r.code, name: r.name, brand: r.brand || undefined,
+      nutrition: {}, unit: 'g', portion: 100, noValues: true,
+      package_weight_g: r.package_g ?? null,
+      price: Number.isFinite(Number(r.price)) ? Number(r.price) : null,
+      notes: 'ica',
     }));
   }
 
@@ -429,6 +446,7 @@
   let apiResults = [];
   let offResults = [];
   let matsiktetResults = [];
+  let icaResults = [];
   let usdaResults = [];
   let mealieResults = [];
   // Open Food Facts, USDA, Mealie and CookTrace all need the network. When
@@ -681,6 +699,7 @@
     ...(_isSourceActive('cooktrace') ? (cooktraceResults || []).map(item => ({ source: 'cooktrace', item })) : []),
     ...(_isSourceActive('ctpantry') ? (ctPantryResults || []).map(item => ({ source: 'ctpantry', item })) : []),
     ...(_isSourceActive('matsiktet') ? (matsiktetResults || []).map(item => ({ source: 'matsiktet', item })) : []),
+    ...(_isSourceActive('ica') ? (icaResults || []).map(item => ({ source: 'ica', item })) : []),
     ...(_isSourceActive('off')    ? (offResults    || []).filter(f => !offTiersFiltered  || offTiersActive.has(_bucketOff(f.completeness))).map(item => ({ source: 'off',    item })) : []),
     ...(_isSourceActive('usda')   ? (usdaResults   || []).filter(f => !usdaTiersFiltered || usdaTiersActive.has(f.dataType || 'unknown')).map(item => ({ source: 'usda',   item })) : []),
   ];
@@ -888,6 +907,7 @@
     apiResults = [];
     offResults = [];
     matsiktetResults = [];
+    icaResults = [];
     usdaResults = [];
     mealieResults = [];
     cooktraceResults = [];
@@ -916,6 +936,17 @@
           apiTotalHits = apiResults.length;
           apiHasMore = false;
           apiPage = 1;
+        } catch { apiResults = []; apiTotalHits = 0; apiHasMore = false; }
+        finally { loading = false; }
+      } else if (src === 'ica') {
+        try {
+          loading = true;
+          const r = await lookupIcaSearch(search);
+          apiResults = _icaItems(r?.items);
+          apiTotalHits = apiResults.length;
+          apiHasMore = false;
+          apiPage = 1;
+          if (r?.reason === 'token') showError('ICA needs its token refreshed on the server');
         } catch { apiResults = []; apiTotalHits = 0; apiHasMore = false; }
         finally { loading = false; }
       } else if (src === 'off') {
@@ -984,6 +1015,9 @@
           jobs.push(NtApi.get('/api/lookup/search?q=' + encodeURIComponent(search))
             .then(r => { matsiktetResults = _matsiktetItems(r?.items); })
             .catch(() => { matsiktetResults = []; }));
+          jobs.push(lookupIcaSearch(search)
+            .then(r => { icaResults = _icaItems(r?.items); })
+            .catch(() => { icaResults = []; }));
         }
         if ($offEnabled && activeTab === 0) {
           jobs.push(API.searchByNameWithMeta(search, 1, ALL_MODE_PAGE_SIZE)
@@ -1187,6 +1221,17 @@
         const p = await lookupGtin(food.barcode);
         if (p?.found) food = { ...food, ...foodFromGtin(food.barcode, p), _seHydrated: true };
       } catch { /* fall through with the un-hydrated hit */ }
+    }
+    if (sourceHint === 'ica' && food?.icaCode && !food._icaHydrated) {
+      // ICA publishes no nutrition in the search payload, so the numbers are
+      // one cached product lookup away. A miss (or a spent WAF token) says so
+      // instead of opening an editor with 0 kcal.
+      const p = await lookupIca(food.icaCode);
+      if (p?.found) food = { ...food, ...foodFromIca(p), _icaHydrated: true };
+      else {
+        showError('Could not load the ICA numbers — the token may need a refresh');
+        return;
+      }
     }
     if (sourceHint === 'off' && food && food.barcode && !food._offHydrated) {
       try {
@@ -2383,7 +2428,7 @@
                 {:else}
                   <div class="food-thumb-placeholder">
                     <span class="material-symbols-rounded">
-                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'matsiktet'}storefront{:else if source === 'off'}public{:else}{_tabIcon}{/if}
+                      {#if isMealie || isCookTrace}menu_book{:else if source === 'usda'}science{:else if source === 'matsiktet' || source === 'ica'}storefront{:else if source === 'off'}public{:else}{_tabIcon}{/if}
                     </span>
                   </div>
                 {/if}
@@ -2442,6 +2487,7 @@
                   {:else if source === 'cooktrace' || source === 'ctpantry'}CookTrace
                   {:else if source === 'usda'}USDA
                   {:else if source === 'matsiktet'}Matsiktet
+                  {:else if source === 'ica'}ICA
                   {:else}OFF{/if}
                 </span>
               </button>
@@ -2471,6 +2517,7 @@
             {/if}
             {#if activeTab === 0}
               <span class="asc-chip"><span class="asc-dot asc-matsiktet"></span>Matsiktet · {matsiktetResults.length}</span>
+              <span class="asc-chip"><span class="asc-dot asc-ica"></span>ICA · {icaResults.length}</span>
             {/if}
             {#if $offEnabled}
               <span class="asc-chip"><span class="asc-dot asc-off"></span>OFF · {#if _sourcesOffline}{$_('foods.offline.source')}{:else}{offResults.length}{#if _allOffTotal > offResults.length} of {_allOffTotal.toLocaleString()}{/if}{/if}</span>
@@ -2684,7 +2731,7 @@
                     <img class="food-thumb" src={food.imgUrl} alt="" loading="lazy" referrerpolicy="no-referrer" on:error={e => e.target.style.display='none'} />
                   {:else}
                     <div class="food-thumb-placeholder">
-                      <span class="material-symbols-rounded">{searchSource === 'matsiktet' ? 'storefront' : searchSource === 'usda' ? 'science' : 'public'}</span>
+                      <span class="material-symbols-rounded">{searchSource === 'matsiktet' || searchSource === 'ica' ? 'storefront' : searchSource === 'usda' ? 'science' : 'public'}</span>
                     </div>
                   {/if}
                   <div class="food-info">
@@ -3538,6 +3585,8 @@
   .source-badge-off    { background: rgba(148, 163, 184, 0.18); color: rgb(148, 163, 184); }
   .source-badge-matsiktet { background: rgba(250, 204, 21, 0.16); color: rgb(161, 98, 7); }
   .asc-dot.asc-matsiktet { background: rgb(250, 204, 21); }
+  .source-badge-ica    { background: rgba(220, 38, 38, 0.14); color: rgb(185, 28, 28); }
+  .asc-dot.asc-ica     { background: rgb(220, 38, 38); }
   /* Both CookTrace surfaces (recipes on the Recipes tab, pantry rows on
      the Foods tab) share one badge colour: same upstream app, and the
      tab already disambiguates which endpoint produced the row. */

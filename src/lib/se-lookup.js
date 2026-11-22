@@ -27,6 +27,20 @@ export async function lookupGtin(code) {
   catch { return null; }
 }
 
+/** ICA's catalogue by name; a hit carries no macros until it is hydrated. */
+export async function lookupIcaSearch(q) {
+  if (!q) return { items: [] };
+  try { return await NtApi.get('/api/lookup/ica/search?q=' + encodeURIComponent(q)); }
+  catch { return { items: [] }; }
+}
+
+/** One ICA product id -> the numbers; null on a miss or a spent WAF token. */
+export async function lookupIca(code) {
+  if (!code) return null;
+  try { return await NtApi.get('/api/lookup/ica/' + encodeURIComponent(code)); }
+  catch { return null; }
+}
+
 /** A shop price for a name/barcode; null when no shop carries it. */
 export async function lookupPrice({ code, name, brand, pack } = {}) {
   if (!code && !name) return null;
@@ -60,5 +74,21 @@ export function foodFromGtin(code, hit) {
       price ? `${price.exact ? 'pris' : 'pris ca'} ${price.store}` : null,
       'matsiktet.se',
     ].filter(Boolean).join(' · '),
+  };
+}
+
+/** An ICA detail hit as a food row: per 100 g, pack and shelf price. */
+export function foodFromIca(hit) {
+  const price = Number.isFinite(Number(hit?.price)) ? Number(hit.price) : null;
+  return {
+    name: hit?.name || '',
+    brand: hit?.brand || '',
+    barcode: null,
+    nutrition: hit?.nutrition || {},
+    portion: 100,
+    unit: hit?.unit || 'g',
+    package_weight_g: hit?.package_g ?? null,
+    price,
+    notes: hit?.notes || null,
   };
 }

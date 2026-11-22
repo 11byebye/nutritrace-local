@@ -58,6 +58,8 @@
         <select class="select sel-sm" value={$foodsDefaultSource} on:change={e => foodsDefaultSource.set(e.target.value)}>
           <option value="all">{$_('foods.sources.all')}</option>
           <option value="local">{$_('foods.sources.local')}</option>
+          <option value="matsiktet">Matsiktet</option>
+          <option value="ica">ICA</option>
           {#if $offEnabled}<option value="off">OFF</option>{/if}
           {#if $usdaEnabled}<option value="usda">USDA</option>{/if}
           {#if _mealieEnabled}<option value="mealie">Mealie</option>{/if}

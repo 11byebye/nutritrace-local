@@ -5,6 +5,8 @@
  *
  *   GET  /api/lookup/gtin/:code   one GTIN -> a food row (Matsiktet)
  *   GET  /api/lookup/search?q=    name -> [{ gtin, name, brand }]
+ *   GET  /api/lookup/ica/search?q= name -> ICA rows (no macros, no EAN)
+ *   GET  /api/lookup/ica/:code    one ICA product id -> a food row
  *   POST /api/lookup/label        one label photo -> a food row (tesseract OCR)
  *
  * Why Matsiktet first: it carries the Swedish own-brands OFF is thin on
@@ -27,6 +29,7 @@ import {
   parseProduct, parseSearch, firstSearchGtin, parseLabelText,
 } from '../lib/matsiktet.js';
 import { priceFor } from '../lib/store-price.js';
+import { icaSearchRows, icaProductPayload, rowFromIca, IcaChallengeError } from '../lib/ica.js';
 import { readLabel } from '../lib/label-ocr.js';
 
 const router = Router();
@@ -86,6 +89,29 @@ function cacheSet(key, value) {
 }
 
 const MAX_HTML = 2 * 1024 * 1024;
+// ICA search answers a query, not a product: a short cache keeps a typo
+// retype cheap without hiding a shelf change for a day.
+const ICA_SEARCH_TTL_MS = 30 * 60 * 1000;
+const ICA_SEARCH_MAX = 500;
+const _icaSearchCache = new Map();
+
+function icaSearchCached(key) {
+  const hit = _icaSearchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > ICA_SEARCH_TTL_MS) {
+    _icaSearchCache.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function icaSearchSet(key, value) {
+  if (_icaSearchCache.size >= ICA_SEARCH_MAX) {
+    const oldest = _icaSearchCache.keys().next().value;
+    if (oldest !== undefined) _icaSearchCache.delete(oldest);
+  }
+  _icaSearchCache.set(key, { at: Date.now(), value });
+}
 
 async function fetchHtml(url) {
   const res = await fetchChecked(url, {
@@ -168,6 +194,60 @@ router.get('/price', async (req, res) => {
   } catch (err) {
     logger.warn({ err: err?.message }, 'price lookup failed');
     res.json({ price: null });
+  }
+});
+
+/**
+ * ICA's own catalogue by name. A hit carries name, brand, pack and shelf
+ * price only — ICA publishes no EAN and the macros live on the product page —
+ * so the client says "Tap to load the numbers" and asks /ica/:id on tap.
+ *
+ * A spent WAF token answers `reason: 'token'` with an empty list rather than
+ * an error: the search itself worked, the shop just would not talk.
+ */
+router.get('/ica/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ items: [] });
+  const key = q.toLowerCase();
+  const cached = icaSearchCached(key);
+  if (cached) return res.json({ items: cached });
+  try {
+    const items = (await icaSearchRows(q))
+      .filter(r => r.code && r.name)
+      .slice(0, 20)
+      .map(({ code, name, brand, pack, package_g, amount, shelf }) => ({
+        code, name, brand, pack, package_g, price: amount, shelf,
+      }));
+    icaSearchSet(key, items);
+    res.json({ items });
+  } catch (err) {
+    if (err instanceof IcaChallengeError) {
+      logger.info('ica search skipped: WAF token missing or spent');
+      return res.json({ items: [], reason: 'token' });
+    }
+    logger.warn({ err: err?.message }, 'ica search failed');
+    res.status(502).json({ items: [], error: 'ica unavailable' });
+  }
+});
+
+/** One ICA product id -> a food row on the 100 g basis. */
+router.get('/ica/:code', async (req, res) => {
+  const code = String(req.params.code || '').trim();
+  if (!/^\d{1,20}$/.test(code)) return res.status(400).json({ found: false, error: 'invalid id' });
+  const cached = cacheGet(`ica:p:${code}`);
+  if (cached) return res.json(cached);
+  try {
+    const payload = await icaProductPayload(code);
+    const row = rowFromIca(payload, { code });
+    if (!row.found) return res.status(422).json({ found: false, reason: 'no nutrition table' });
+    cacheSet(`ica:p:${code}`, row);
+    res.json(row);
+  } catch (err) {
+    if (err instanceof IcaChallengeError) {
+      return res.status(503).json({ found: false, reason: 'token', error: 'ICA token missing or spent' });
+    }
+    logger.warn({ err: err?.message }, 'ica product lookup failed');
+    res.status(502).json({ found: false, error: 'ica unavailable' });
   }
 });
 
