@@ -163,15 +163,14 @@
   // on the same 100 basis and a repeated column buys nothing.
   const COLUMNS = [
     { key: 'name', label: 'foods.list.name', align: 'left' },
-    { key: 'category', label: 'foods.list.category', align: 'left' },
     { key: 'calories', label: 'foods.list.kcal', align: 'right' },
     { key: 'proteins', label: 'foods.list.protein', align: 'right' },
     { key: 'carbohydrates', label: 'foods.list.carbs', align: 'right' },
     { key: 'fat', label: 'foods.list.fat', align: 'right' },
     { key: 'package_g', label: 'foods.list.pack', align: 'right' },
-    { key: 'price', label: 'foods.list.price', align: 'right' },
     { key: 'price_100', label: 'foods.list.price_100', align: 'right' },
     { key: 'protein_sek', label: 'foods.list.protein_sek', align: 'right' },
+    { key: 'category', label: 'foods.list.category', align: 'left' },
   ];
 
   function sortBy(key) {
@@ -231,7 +230,7 @@
   }
 
   // Money in the per-100 column is one decimal (user 2026-11-20); the pack
-  // price keeps its two decimals because that is what the shelf says.
+  // price column was dropped 2026-11-22, so this is the only money column.
   function money1(value) {
     if (value == null) return '';
     return Number(value).toFixed(1).replace('.', ',');
@@ -243,18 +242,12 @@
     return Number(value).toFixed(digits).replace('.', ',');
   }
 
-  function money(value) {
-    if (value == null) return '';
-    return value.toFixed(2).replace('.', ',');
-  }
-
   function sortValue(food, key) {
     if (key === 'name') return String(food.name || '').toLowerCase();
     if (key === 'usage') return Number(food.usage_count) || 0;
     if (key === 'recent') return String(food.last_used_at || '');
     if (key === 'category') return catText(food).toLowerCase();
     if (key === 'package_g') return Number(food.package_weight_g) || -1;
-    if (key === 'price') return Number(food.price) || -1;
     if (key === 'price_100') return price100(food) ?? -1;
     if (key === 'protein_sek') return kronorPerGramProtein(food) ?? -1;
     return per100(food, key) ?? -1;
@@ -353,15 +346,14 @@
                 </span>
               {/if}
             </td>
-            <td class="col-category">{catText(food)}</td>
-            <td class="col-calories right">{_energy ? `${_energy.value.toLocaleString()} ${_energy.unit}` : ''}</td>
+            <td class="col-calories right">{_energy ? _energy.value.toLocaleString() : ''}</td>
             <td class="col-proteins right">{macroGrams(per100(food, 'proteins'))}</td>
             <td class="col-carbohydrates right">{macroGrams(per100(food, 'carbohydrates'))}</td>
             <td class="col-fat right">{macroGrams(per100(food, 'fat'))}</td>
             <td class="col-package_g right">{food.package_weight_g ? `${num(food.package_weight_g, 0)} g` : ''}</td>
-            <td class="col-price right">{money(Number(food.price) || null)}</td>
             <td class="col-price_100 right">{money1(price100(food))}</td>
             <td class="col-protein_sek right">{kronorPerProtein(kronorPerGramProtein(food))}</td>
+            <td class="col-category">{catText(food)}</td>
           </tr>
         {/each}
       </tbody>
@@ -463,7 +455,7 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  .col-name { min-width: 190px; }
+  .col-name { min-width: 171px; }
   .col-category {
     color: var(--text-2);
     max-width: 160px;
@@ -477,7 +469,7 @@
   @media (max-width: 719px) {
     .food-table { font-size: 12px; }
     thead th, td { padding: 6px 7px; }
-    .col-name { min-width: 150px; }
+    .col-name { min-width: 135px; }
     /* Frozen column: tinted and shadowed so the names read as a fixed
        gutter, not as another value column that happens to stay put. The
        tint is the accent at low strength, so it works on both themes. */
