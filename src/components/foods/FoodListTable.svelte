@@ -407,6 +407,11 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    /* One padding source for header and cells, so a right-aligned value and
+       its header share an edge (2026-11-22). Tighter than the first compact
+       pass: the phone had plenty of air left. */
+    --cell-x: 8px;
+    --cell-y: 7px;
   }
   thead th {
     position: sticky;
@@ -426,7 +431,7 @@
     align-items: center;
     gap: 2px;
     width: 100%;
-    padding: 8px 10px;
+    padding: var(--cell-y) var(--cell-x);
     background: none;
     border: none;
     color: inherit;
@@ -447,7 +452,7 @@
   tbody tr.marked { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   td {
-    padding: 7px 10px;
+    padding: var(--cell-y) var(--cell-x);
     vertical-align: top;
   }
   td.right {
@@ -467,8 +472,7 @@
      its identity while the numbers slide. Hiding columns instead would hide
      the very numbers being compared. */
   @media (max-width: 719px) {
-    .food-table { font-size: 12px; }
-    thead th, td { padding: 6px 7px; }
+    .food-table { font-size: 12px; --cell-x: 5px; --cell-y: 6px; }
     .col-name { min-width: 135px; }
     /* Frozen column: tinted and shadowed so the names read as a fixed
        gutter, not as another value column that happens to stay put. The
