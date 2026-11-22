@@ -9,6 +9,7 @@
  *   GET  /api/lookup/ica/:code    one ICA product id -> a food row
  *   GET  /api/lookup/willys/search?q= name -> Willys rows (no macros, no EAN)
  *   GET  /api/lookup/willys/:code one Willys code -> a complete food row
+ *   POST /api/lookup/trace        a failed scan's hops -> one log line
  *   POST /api/lookup/label        one label photo -> a food row (tesseract OCR)
  *
  * Why Matsiktet first: it carries the Swedish own-brands OFF is thin on
@@ -212,7 +213,11 @@ async function lookupSearch(query) {
 
 router.get('/gtin/:code', async (req, res) => {
   try {
-    res.json(await withPrice(await lookupGtin(req.params.code)));
+    const result = await withPrice(await lookupGtin(req.params.code));
+    // One line per scan: the first half of the trace (the client reports the
+    // OFF half when both miss). Cheap, and the only record a miss leaves.
+    logger.info({ code: String(req.params.code).slice(0, 20), matsiktet: result?.found ? 'hit' : 'miss' }, 'scan gtin');
+    res.json(result);
   } catch (err) {
     logger.warn({ err: err?.message }, 'matsiktet gtin lookup failed');
     res.status(502).json({ found: false, error: 'lookup unavailable' });
@@ -319,6 +324,19 @@ router.get('/ica/:code', async (req, res) => {
     logger.warn({ err: err?.message }, 'ica product lookup failed');
     res.status(502).json({ found: false, error: 'ica unavailable' });
   }
+});
+
+/**
+ * A failed scan's whole chain, as the phone saw it. Log only: no storage, no
+ * lookup, and the payload is capped so a rogue client cannot flood the log.
+ */
+router.post('/trace', (req, res) => {
+  const code = String(req.body?.code || '').slice(0, 40);
+  const hops = Array.isArray(req.body?.hops)
+    ? req.body.hops.slice(0, 8).map(h => String(h).slice(0, 40))
+    : [];
+  if (code) logger.info({ code, hops }, 'scan trace');
+  res.status(204).end();
 });
 
 /**

@@ -1448,6 +1448,7 @@
     "toast": {
       "camera_denied": "Camera access denied or unavailable.",
       "barcode_set": "Barcode set",
+    "barcode_misread": "Barcode misread — hold the pack steadier and scan again",
       "off_upload_failed": "Could not upload to Open Food Facts: {error}",
       "off_not_found": "Not found in Open Food Facts",
     "not_in_swedish": "Not found in the Swedish catalogue (Matsiktet). Fill the values from the pack.",

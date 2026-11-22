@@ -22,8 +22,9 @@
   import { DB, localDateStr } from '../lib/db.js';
   import {
     lookupGtin, lookupPrice, lookupIcaSearch, lookupIca, lookupWillysSearch, lookupWillys,
-    foodFromGtin, foodFromIca, foodFromWillys, packGrams,
+    foodFromGtin, foodFromIca, foodFromWillys, packGrams, reportScanTrace,
   } from '../lib/se-lookup.js';
+  import { gtinValid } from '../lib/gtin.js';
   import { loadEntry } from '../stores/diary.js';
   import { API, USDA, NtApi } from '../lib/api.js';
   import { Nutrition } from '../lib/nutrition.js';
@@ -548,6 +549,8 @@
   let selectedItem = null;
   let showDeleteDialog = false;
   let scannerOpen = false;
+  let scanMissOpen = false;
+  let scanMissCode = '';
   let showQtyPrompt = false;
   let _qtyPromptPortionEl = null;
   let _qtyPromptServingsEl = null;
@@ -1818,6 +1821,15 @@
     // the redundant remote-OFF roundtrip from the double-lookup log.)
     const code = /^\d{12}$/.test(rawCode) ? '0' + rawCode : rawCode;
     if (!code) return;
+    // A bad GS1 check digit is a misread, not an unknown product: send the
+    // user back to the camera instead of an empty editor.
+    if (!gtinValid(code)) {
+      showError('Barcode misread — hold the pack steadier and scan again');
+      return;
+    }
+    // The hops are assembled as the scan walks the chain, so a miss leaves a
+    // record of where it died.
+    const hops = [];
     try {
       // 1. Check the user's library first. If they've already saved this
       //    barcode, the quick-add card (pickMode) or the existing food page
@@ -1825,6 +1837,7 @@
       //    a fresh-import editor for something they've already vetted.
       const codeN = _normBarcode(code);
       const existing = (localFoods || []).find(f => f.barcode && _normBarcode(f.barcode) === codeN);
+      hops.push(existing ? 'library:hit' : 'library:miss');
       if (existing) {
         if (pickMode) await pickFood(existing);
         else          openEditor(await _enrichLibraryFood(existing, code), 'foodList');
@@ -1838,6 +1851,7 @@
       //    Tried even when navigator.onLine says offline: the request goes
       //    through the app's own proxy, which a tailnet-only phone can reach.
       const se = await lookupGtin(code);
+      hops.push('matsiktet:' + (se?.found ? 'hit' : 'miss'));
       if (se?.found) {
         scannerOpen = false;
         openEditor({ ...foodFromGtin(code, se), _seHydrated: true }, 'foodList');
@@ -1857,6 +1871,7 @@
       _armScanIndicator();
       const { API } = await import('../lib/api.js');
       const result = await API.lookupBarcode(code);
+      hops.push('off:' + (result ? 'hit' : 'miss'));
       if (result) {
         await _attachPrice(result, code);
         // OFF returned data for this barcode — show the nutrition-facts
@@ -1889,13 +1904,15 @@
           detailSheetOpen = true;
         }
       } else {
-        const { showInfo: si } = await import('../stores/toast.js');
-        si(_sourcesOffline
-          ? $_('foods.offline.barcode')
-          : 'Not in Open Food Facts — enter the food and contribute it back if you want');
-        openEditor({ barcode: code }, 'foodList');
+        // Both catalogues missed. Record the chain, then offer the one thing
+        // that still works: a name search in the shops (ICA and Willys carry
+        // goods neither barcode catalogue knows).
+        reportScanTrace(code, hops);
+        scanMissCode = code;
+        scanMissOpen = true;
       }
     } catch(e) {
+      reportScanTrace(code, [...hops, 'error']);
       const { showError: se } = await import('../stores/toast.js');
       se('Lookup failed — opening editor so you can enter manually');
       openEditor({ barcode: code }, 'foodList');
@@ -1904,6 +1921,21 @@
       _scanLookupCode   = '';
       _disarmScanIndicator();
     }
+  }
+
+  /** A missed scan's two ways out: search the shops by name, or type it in. */
+  function searchMissByName() {
+    scannerOpen = false;
+    scanMissOpen = false;
+    search = '';
+    searchSource = 'all';
+    tick().then(() => _searchInputEl?.focus());
+  }
+
+  function enterMissManually() {
+    scannerOpen = false;
+    scanMissOpen = false;
+    openEditor({ barcode: scanMissCode, notes: `scan miss · ${scanMissCode}` }, 'foodList');
   }
 
   async function loadYesterdayMeals() {
@@ -3256,6 +3288,16 @@
   confirmText="Delete"
   dangerous
   on:confirm={() => selectedItem && deleteItem(selectedItem)}
+/>
+
+<Dialog
+  bind:open={scanMissOpen}
+  title="Not in the catalogues"
+  message={`EAN ${scanMissCode} is in neither Matsiktet nor Open Food Facts. Search the shops by name, or type the label in yourself.`}
+  confirmText="Search by name"
+  cancelText="Enter manually"
+  on:confirm={searchMissByName}
+  on:cancel={enterMissManually}
 />
 
 <Dialog

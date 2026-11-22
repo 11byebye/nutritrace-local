@@ -10,6 +10,7 @@
   import { NUTRIMENTS } from '../lib/nutrition.js';
   import { pricePer100g, costOf, proteinPerSek, parseMoney } from '../lib/price.js';
   import { showSuccess, showError, showInfo } from '../stores/toast.js';
+  import { gtinValid } from '../lib/gtin.js';
   import { offlineState } from '../lib/offline-api.js';
   import { offNutritionStatus, needsFullLookup, applyOffPrepared } from '../lib/off-nutrition.js';
   import { editorState, clearFoodEditorState } from '../stores/editorState.js';
@@ -218,6 +219,11 @@
   async function onEditorScan({ detail }) {
     const code = detail?.code;
     if (!code) return;
+    // A bad GS1 check digit is a misread, not an unknown product.
+    if (!gtinValid(code)) {
+      showError($_('food_editor.toast.barcode_misread'));
+      return;
+    }
     food.barcode = code;
     food = food;
     const looksEmpty = !food.name?.trim() && !food.brand?.trim() &&

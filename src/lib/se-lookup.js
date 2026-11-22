@@ -41,6 +41,15 @@ export async function lookupIca(code) {
   catch { return null; }
 }
 
+/**
+ * Send the hops of a failed scan to the server, so "it never works" leaves a
+ * trace instead of a shrug. Best-effort: a failed trace must not surface.
+ */
+export async function reportScanTrace(code, hops) {
+  if (!code) return;
+  try { await NtApi.post('/api/lookup/trace', { code: String(code), hops }); } catch { /* noop */ }
+}
+
 /** Willys' catalogue by name; a hit carries no macros until it is hydrated. */
 export async function lookupWillysSearch(q) {
   if (!q) return { items: [] };
