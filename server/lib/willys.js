@@ -100,11 +100,20 @@ export function parseNutritionHeaders(headers) {
   return sanitizeNutrition(nutrition);
 }
 
-/** The store's own shelf name, from the last breadcrumb. */
-export function shelfOf(product) {
+/**
+ * The store's own shelf name. The crumb trail ends on the product itself
+ * ("Alla varor / Fryst / Kött & fågel / Fågel / Innerfilé …"), so the shelf
+ * is the last crumb that is not the product and not the root.
+ */
+export function shelfOf(product, name = null) {
   const crumbs = product?.breadcrumbs || product?.breadCrumbs || [];
-  const named = crumbs.filter(c => c && c.name).map(c => c.name);
-  return named.length ? named[named.length - 1] : null;
+  const named = crumbs
+    .filter(c => c && c.name && c.name !== 'Alla varor')
+    .map(c => c.name);
+  const productName = String(name ?? product?.name ?? '').trim();
+  const last = named[named.length - 1];
+  if (!last) return null;
+  return productName && last === productName ? (named[named.length - 2] || null) : last;
 }
 
 /** One product payload -> a food row on the 100 g basis. */

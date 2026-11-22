@@ -98,7 +98,15 @@ test('an impossible read is dropped by the ceiling', () => {
   assert.equal(row.nutrition.calories, 100);
 });
 
-test('the shelf name is the last breadcrumb', () => {
+test('the shelf name is the last real breadcrumb', () => {
   assert.equal(shelfOf(DETAIL), 'Kyckling');
   assert.equal(shelfOf({}), null);
+  // The live trail ends on the product itself; the shelf is the one before.
+  assert.equal(shelfOf({
+    name: 'Innerfilé av Svensk Kyckling Fryst',
+    breadcrumbs: [
+      { name: 'Alla varor' }, { name: 'Fryst' }, { name: 'Kött & fågel' },
+      { name: 'Fågel' }, { name: 'Innerfilé av Svensk Kyckling Fryst' },
+    ],
+  }), 'Fågel');
 });
