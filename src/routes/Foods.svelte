@@ -1227,8 +1227,13 @@
       // one cached product lookup away. A miss (or a spent WAF token) says so
       // instead of opening an editor with 0 kcal.
       const p = await lookupIca(food.icaCode);
-      if (p?.found) food = { ...food, ...foodFromIca(p), _icaHydrated: true };
-      else {
+      if (p?.found) {
+        const searchPrice = food.price;
+        food = { ...food, ...foodFromIca(p), _icaHydrated: true };
+        // A detail payload can omit the price; the search row's number is
+        // still the same shelf price and better than an empty field.
+        if (food.price == null && Number.isFinite(Number(searchPrice))) food.price = Number(searchPrice);
+      } else {
         showError('Could not load the ICA numbers — the token may need a refresh');
         return;
       }

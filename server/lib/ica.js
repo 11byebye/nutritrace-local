@@ -304,3 +304,13 @@ export async function icaProduct(code, { query = null, shelf = null } = {}) {
   const payload = await icaProductPayload(code);
   return rowFromIca(payload, { code, query, shelf });
 }
+
+/**
+ * The shelf price of one product id, in SEK; null when the shop lists none.
+ * Separate from the product row on purpose: the row is good for a month, a
+ * price is good for hours, and the caller caches the two on their own clocks.
+ */
+export async function icaShelfPrice(code) {
+  const payload = await icaProductPayload(code);
+  return parseAmount(payload?.product?.price?.amount) ?? null;
+}

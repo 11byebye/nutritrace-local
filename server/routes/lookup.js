@@ -29,7 +29,9 @@ import {
   parseProduct, parseSearch, firstSearchGtin, parseLabelText,
 } from '../lib/matsiktet.js';
 import { priceFor } from '../lib/store-price.js';
-import { icaSearchRows, icaProductPayload, rowFromIca, IcaChallengeError } from '../lib/ica.js';
+import {
+  icaSearchRows, icaProductPayload, rowFromIca, icaShelfPrice, IcaChallengeError,
+} from '../lib/ica.js';
 import { readLabel } from '../lib/label-ocr.js';
 
 const router = Router();
@@ -94,6 +96,30 @@ const MAX_HTML = 2 * 1024 * 1024;
 const ICA_SEARCH_TTL_MS = 30 * 60 * 1000;
 const ICA_SEARCH_MAX = 500;
 const _icaSearchCache = new Map();
+// A product row is good for a month; its price is not. Prices move on their
+// own six-hour clock, and a failed refresh keeps the last known value rather
+// than blanking the field.
+const ICA_PRICE_TTL_MS = 6 * 60 * 60 * 1000;
+const ICA_PRICE_MAX = 1000;
+const _icaPriceCache = new Map();
+
+function icaPriceCached(code) {
+  const hit = _icaPriceCache.get(code);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > ICA_PRICE_TTL_MS) {
+    _icaPriceCache.delete(code);
+    return undefined;
+  }
+  return hit.value;
+}
+
+function icaPriceSet(code, value) {
+  if (_icaPriceCache.size >= ICA_PRICE_MAX) {
+    const oldest = _icaPriceCache.keys().next().value;
+    if (oldest !== undefined) _icaPriceCache.delete(oldest);
+  }
+  _icaPriceCache.set(code, { at: Date.now(), value });
+}
 
 function icaSearchCached(key) {
   const hit = _icaSearchCache.get(key);
@@ -235,11 +261,26 @@ router.get('/ica/:code', async (req, res) => {
   const code = String(req.params.code || '').trim();
   if (!/^\d{1,20}$/.test(code)) return res.status(400).json({ found: false, error: 'invalid id' });
   const cached = cacheGet(`ica:p:${code}`);
-  if (cached) return res.json(cached);
+  if (cached) {
+    // The row is a month old at worst; the price rides its own clock. A
+    // refresh that cannot reach the shop keeps the last known price.
+    let price = icaPriceCached(code);
+    if (price === undefined) {
+      try {
+        price = await icaShelfPrice(code);
+        icaPriceSet(code, price);
+      } catch (err) {
+        price = cached.price ?? null;
+        logger.info({ err: err?.message, code }, 'ica price refresh failed; serving last known');
+      }
+    }
+    return res.json({ ...cached, price });
+  }
   try {
     const payload = await icaProductPayload(code);
     const row = rowFromIca(payload, { code });
     if (!row.found) return res.status(422).json({ found: false, reason: 'no nutrition table' });
+    icaPriceSet(code, row.price ?? null);
     cacheSet(`ica:p:${code}`, row);
     res.json(row);
   } catch (err) {
