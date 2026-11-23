@@ -13,6 +13,7 @@
   import { NUTRIMENTS, Nutrition } from '../lib/nutrition.js';
   import { readBodyStat } from '../lib/body-stats-unit.js';
   import { resolveRangeGoal } from '../lib/goal-resolver.js';
+  import { padForMetric, paddedRange } from '../lib/stats-scale.js';
   import { goals, energyUnit, weightUnit, lengthUnit, statsChartType, statsYZero,
            statsAvgLine, statsGoalLine, statsTrendLine, statsIncludeToday, statsShowEmptyDays,
            statsMetricOrder, statsHiddenMetrics,
@@ -570,6 +571,7 @@
     }
 
     // Trend line — always type 'line' even in bar chart mode
+    let _trendData = null;
     if ($statsTrendLine) {
       const pts = values
         .map((v, i) => v !== null && v > 0 ? { x: i, y: v } : null)
@@ -580,6 +582,7 @@
           const found = pts.findIndex(p => p.x === i);
           return found >= 0 ? trendVals[found] : null;
         });
+        _trendData = trendData;
         datasets.push({
           type: 'line',
           label: 'Trend',
@@ -592,6 +595,20 @@
           spanGaps: true,
         });
       }
+    }
+
+    // Weight gets one kilogram of air beyond everything plotted — data,
+    // average, goal and the trend ends — so a max of 88 reads as 89 and a
+    // goal of 78 puts the floor at 77 (user 2026-11-23). Metrics without a
+    // margin in stats-scale.js keep the auto-fit below.
+    const _pad = padForMetric(metric, $weightUnit);
+    let _scaleRange = null;
+    if (_pad > 0) {
+      const plotted = [...values];
+      if ($statsAvgLine && summary) plotted.push(summary.avg);
+      if (_goalVal != null) plotted.push(_goalVal);
+      if (_trendData) plotted.push(..._trendData);
+      _scaleRange = paddedRange(plotted, { pad: _pad });
     }
 
     // #207: x-axis completion tick-marker plugin. Renders a small green
@@ -686,13 +703,15 @@
             // toggle for nutrients + counted metrics where 0 is valid. See
             // PHYSIOLOGICAL_METRICS above for the full list (#67).
             beginAtZero: $statsYZero && !isPhysiologicalMetric(metric),
-            // On physiological metrics, extend the auto-fit range to include
-            // the goal value when one is set, so progress toward goal stays
-            // visible even when the goal is outside the actual data range
-            // (#67 follow-up, requested by duplaja). suggestedMin/Max only
-            // extend bounds, never shrink, so this is safe when data already
-            // brackets the goal.
-            ...(isPhysiologicalMetric(metric) && _goalVal != null ? {
+            // Weight gets an explicit padded window (stats-scale.js); the
+            // goal is part of it, so the line never sits on the frame. Other
+            // physiological metrics just extend the auto-fit to the goal,
+            // which only ever widens bounds and never shrinks them (#67).
+            ...(_scaleRange ? {
+              min: _scaleRange.min,
+              max: _scaleRange.max,
+            } : {}),
+            ...(isPhysiologicalMetric(metric) && _goalVal != null && !_scaleRange ? {
               suggestedMin: _goalVal,
               suggestedMax: _goalVal,
             } : {}),

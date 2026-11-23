@@ -76,6 +76,15 @@
   $: allFields = [...bodyStatsWithUnit, ...allNutrients, ...wellnessFields];
   // Your Goals: categorized
   $: configuredBodyStats = bodyStatsWithUnit.filter(s => $goals[s.id]);
+  // Weight always gets a row on "Your Goals" (user 2026-11-23): it is the
+  // one body stat with a target everyone wants, and it used to be invisible
+  // here until a goal existed, which read as "no weight goal exists". The
+  // row shows "Not set" and opens the same editor as the All Fields tab.
+  $: yourBodyStats = (() => {
+    if (configuredBodyStats.some(s => s.id === 'weight')) return configuredBodyStats;
+    const weight = bodyStatsWithUnit.find(s => s.id === 'weight');
+    return weight ? [weight, ...configuredBodyStats] : configuredBodyStats;
+  })();
   // Alias-aware lookup: after #146 the Kilojoules stat is a display alias
   // for Calories in kJ mode, so its storage key is 'calories'. Reading
   // $goals[s.id] raw for a kilojoules stat always misses the migrated goal.
@@ -902,10 +911,10 @@
           <p class="text-3 text-sm">{@html $_('goals_page.empty.add_hint')}</p>
         </div>
       {:else}
-        {#if configuredBodyStats.length > 0}
+        {#if yourBodyStats.length > 0}
           <p class="section-title">{$_('goals_page.sections.body_stats')}</p>
           <div class="card goals-yours-card">
-            {#each configuredBodyStats as stat, i}
+            {#each yourBodyStats as stat, i}
               {#if i > 0}<div class="divider"></div>{/if}
               <button class="goal-row" on:click={() => openEdit(stat)}>
                 <div class="goal-info">
