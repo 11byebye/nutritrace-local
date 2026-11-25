@@ -1163,7 +1163,7 @@
           </div>
         </div>
       {/if}
-      <div class="chart-wrap">
+      <div class="chart-wrap" class:is-bar={$statsChartType === 'bar'}>
         <canvas bind:this={canvasEl}></canvas>
       </div>
     </div>
@@ -1565,6 +1565,9 @@
     background: rgba(var(--surface-1-rgb, 18,20,26), 0.7);
   }
   .chart-wrap { height: 220px; position: relative; }
+  /* Bar mode gets twice the height: a bar's footprint is its column width,
+     so the extra room reads as headroom for the values, not empty air. */
+  .chart-wrap.is-bar { height: 440px; }
 
   /* Summary */
   .summary-card { padding: 16px 12px; }
@@ -1677,6 +1680,9 @@
     /* Chart grows to fill the vertical rhythm the rails set */
     :global(html:not(.force-mobile-layout)) .chart-wrap {
       height: clamp(300px, 45vh, 520px);
+    }
+    :global(html:not(.force-mobile-layout)) .chart-wrap.is-bar {
+      height: clamp(600px, 90vh, 1040px);
     }
 
     /* Calendar sheet becomes a centered popover on desktop instead of a
