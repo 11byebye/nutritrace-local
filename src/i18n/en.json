@@ -1150,6 +1150,8 @@
   "settings_stats": {
     "default_chart": "Default Chart Type",
     "show_average_line": "Show Average Line",
+    "show_sma_line": "Show Moving Average Line",
+    "sma_window": "Moving Average Window (days)",
     "show_goal_line": "Show Goal Line",
     "show_trend_line": "Show Trend Line",
     "include_today": "Include Today In Trends",

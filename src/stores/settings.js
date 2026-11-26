@@ -44,7 +44,7 @@ export const USER_PREFS = new Set([
   'weightUnit','heightUnit','lengthUnit','distUnit','tempUnit',
   'waterGoalMl','waterUnit','waterContainers','waterShowInStats','waterShowInDiary',
   'dateFormat','timeFormat','timezone',
-  'statsChartType','statsYZero','statsAvgLine','statsGoalLine','statsTrendLine','statsIncludeToday','statsShowEmptyDays',
+  'statsChartType','statsYZero','statsAvgLine','statsSmaLine','statsSmaWindow','statsGoalLine','statsTrendLine','statsIncludeToday','statsShowEmptyDays',
   'statsMetricOrder','statsHiddenMetrics',
   // User profile (collected by Wizard, used for goal calculation; sync so multi-device
   // users see the same body profile)
@@ -779,6 +779,11 @@ export const timezone   = createSettingStore('timezone',   '');     // IANA time
 export const statsChartType = createSettingStore('statsChartType', 'bar');
 export const statsYZero     = createSettingStore('statsYZero',     true);
 export const statsAvgLine   = createSettingStore('statsAvgLine',   true);
+// Trailing simple moving average (stats-sma.js). Off by default: three
+// overlays already ship on, and a fourth line on every chart is a taste call.
+export const statsSmaLine   = createSettingStore('statsSmaLine',   false);
+// Days in the moving average window (2-90, clamped by clampSmaWindow).
+export const statsSmaWindow = createSettingStore('statsSmaWindow', 7);
 export const statsGoalLine  = createSettingStore('statsGoalLine',  true);
 export const statsTrendLine = createSettingStore('statsTrendLine', true);
 export const statsIncludeToday = createSettingStore('statsIncludeToday', false);

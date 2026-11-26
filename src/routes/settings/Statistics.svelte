@@ -1,6 +1,7 @@
 <script>
   import { _ } from 'svelte-i18n';
   import Toggle from '../../components/settings/Toggle.svelte';
+  import { clampSmaWindow } from '../../lib/stats-sma.js';
   import { DB } from '../../lib/db.js';
   import { NUTRIMENTS } from '../../lib/nutrition.js';
   import { scheduleSave } from '../../stores/settings.js';
@@ -17,12 +18,15 @@
   let statsIncludeTodayLocal = DB.getSetting('statsIncludeToday', false);
   let statsShowEmptyDaysLocal = DB.getSetting('statsShowEmptyDays', true);
   let statsAvgLine   = DB.getSetting('statsAvgLine',   true);
+  let statsSmaLine   = DB.getSetting('statsSmaLine',   false);
+  let statsSmaWindow = DB.getSetting('statsSmaWindow', 7);
   let statsGoalLine  = DB.getSetting('statsGoalLine',  true);
   let statsTrendLine = DB.getSetting('statsTrendLine', true);
 
   $: set('statsChartType', statsChartType);
   $: set('statsYZero',     statsYZero);
   $: set('statsAvgLine',   statsAvgLine);
+  $: set('statsSmaLine',   statsSmaLine);
   $: set('statsGoalLine',  statsGoalLine);
   $: set('statsTrendLine', statsTrendLine);
 
@@ -143,6 +147,22 @@
     </div>
     <div class="setting-divider"></div>
     <div class="setting-row"><span class="setting-label">{$_('settings_stats.show_average_line')}</span><Toggle checked={statsAvgLine} on:change={e => { statsAvgLine = e.detail; set('statsAvgLine', e.detail); }} /></div>
+    <div class="setting-divider"></div>
+    <div class="setting-row">
+      <div>
+        <span class="setting-label">{$_('settings_stats.show_sma_line')}</span>
+        <div class="setting-desc">A trailing simple moving average drawn over the chart: the mean of the last N days, not the flat mean of the whole range. Days with nothing logged are skipped, never counted as zero.</div>
+      </div>
+      <Toggle checked={statsSmaLine} on:change={e => { statsSmaLine = e.detail; set('statsSmaLine', e.detail); }} />
+    </div>
+    <div class="setting-divider"></div>
+    <div class="setting-row">
+      <span class="setting-label">{$_('settings_stats.sma_window')}</span>
+      <input class="input" type="number" min="2" max="90" step="1"
+        style="width:80px;text-align:center"
+        value={clampSmaWindow(statsSmaWindow)}
+        on:change={e => { statsSmaWindow = clampSmaWindow(e.currentTarget.value); set('statsSmaWindow', statsSmaWindow); }} />
+    </div>
     <div class="setting-divider"></div>
     <div class="setting-row"><span class="setting-label">{$_('settings_stats.show_goal_line')}</span><Toggle checked={statsGoalLine} on:change={e => { statsGoalLine = e.detail; set('statsGoalLine', e.detail); }} /></div>
     <div class="setting-divider"></div>

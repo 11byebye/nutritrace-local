@@ -14,8 +14,9 @@
   import { readBodyStat } from '../lib/body-stats-unit.js';
   import { resolveRangeGoal } from '../lib/goal-resolver.js';
   import { padForMetric, paddedRange } from '../lib/stats-scale.js';
+  import { clampSmaWindow, movingAverage } from '../lib/stats-sma.js';
   import { goals, energyUnit, weightUnit, lengthUnit, statsChartType, statsYZero,
-           statsAvgLine, statsGoalLine, statsTrendLine, statsIncludeToday, statsShowEmptyDays,
+           statsAvgLine, statsSmaLine, statsSmaWindow, statsGoalLine, statsTrendLine, statsIncludeToday, statsShowEmptyDays,
            statsMetricOrder, statsHiddenMetrics,
            hiddenBodyStats, dateFormat, pageBanners, bannerStyle,
            fitbitEnabled, garminEnabled, withingsEnabled, googleHealthEnabled, healthConnectEnabled, fitbitFamilyEnabled, wellnessMetrics,
@@ -530,6 +531,25 @@
       });
     }
 
+    // Simple moving average — trailing window over the charted points, gaps
+    // skipped (stats-sma.js). Solid and un-dashed so it reads apart from the
+    // dashed range mean above and the dotted regression below. Always a line
+    // even in bar mode. The range mean and the moving average answer
+    // different questions, so both can be on at once.
+    if ($statsSmaLine) {
+      const _smaDays = clampSmaWindow($statsSmaWindow);
+      datasets.push({
+        type: 'line',
+        label: `MA (${_smaDays} d)`,
+        data: movingAverage(values, _smaDays),
+        borderColor: isDark ? 'rgba(56,189,248,0.9)' : 'rgba(2,132,199,0.9)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        spanGaps: true,
+      });
+    }
+
     // Goal value: computed up-front whether or not the Goal line itself is
     // visible, so the y-axis auto-fit below can extend bounds to include it
     // (so weight charts read as "progress toward goal" rather than scatter
@@ -914,7 +934,7 @@
     } catch {}
   });
 
-  $: { metric; range; customStart; customEnd; $statsIncludeToday; $statsShowEmptyDays; $statsChartType; $statsYZero; $statsAvgLine; $statsGoalLine; $statsTrendLine;
+  $: { metric; range; customStart; customEnd; $statsIncludeToday; $statsShowEmptyDays; $statsChartType; $statsYZero; $statsAvgLine; $statsSmaLine; $statsSmaWindow; $statsGoalLine; $statsTrendLine;
        if (canvasEl) loadData(); }
 
   onDestroy(() => { if (chart) chart.destroy(); });
@@ -1313,6 +1333,17 @@
         on:change={(e) => statsAvgLine.set(e.currentTarget.checked)} />
       <span>Average</span>
     </label>
+    <div class="stats-rail-check stats-rail-ma">
+      <label class="stats-rail-ma-lbl">
+        <input type="checkbox" checked={$statsSmaLine}
+          on:change={(e) => statsSmaLine.set(e.currentTarget.checked)} />
+        <span>Moving average</span>
+      </label>
+      <input class="stats-rail-days" type="number" min="2" max="90" step="1"
+        aria-label="Moving average window in days" title="Days in the moving average"
+        value={clampSmaWindow($statsSmaWindow)}
+        on:change={(e) => statsSmaWindow.set(clampSmaWindow(e.currentTarget.value))} />
+    </div>
     <label class="stats-rail-check">
       <input type="checkbox" checked={$statsGoalLine}
         on:change={(e) => statsGoalLine.set(e.currentTarget.checked)} />
@@ -1811,6 +1842,29 @@
     accent-color: var(--accent);
     cursor: pointer;
   }
+  /* Moving average: checkbox + its day-count box share one row, so the
+     window can be tuned without leaving the chart. */
+  .stats-rail-ma { cursor: default; }
+  .stats-rail-ma-lbl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+  }
+  .stats-rail-days {
+    width: 52px;
+    flex: none;
+    padding: 3px 6px;
+    text-align: center;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-1);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .stats-rail-days:focus { outline: none; border-color: var(--accent); }
 
   /* ── Phase-C polish additions (desktop-only, gated inline where needed) ── */
   /* #2 Rail filter input */
