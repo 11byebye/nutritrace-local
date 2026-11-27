@@ -21,7 +21,10 @@ for (const c of result.changes) {
   const before = c.before == null ? '?' : Number(c.before).toFixed(1);
   const after = c.after == null ? '?' : Number(c.after).toFixed(1);
   const delta = (c.before != null && c.after != null) ? (c.after - c.before) : null;
-  console.log(`  ${c.date}  ${String(c.name).slice(0, 30).padEnd(30)}  ${before} -> ${after} kcal${delta == null ? '' : ` (${delta >= 0 ? '+' : ''}${delta.toFixed(1)})`}`);
+  const money = c.priceChanged
+    ? `  price ${c.priceBefore == null ? '–' : Number(c.priceBefore).toFixed(2)} -> ${c.priceAfter == null ? '–' : Number(c.priceAfter).toFixed(2)}`
+    : '';
+  console.log(`  ${c.date}  ${String(c.name).slice(0, 28).padEnd(28)}  ${before} -> ${after} kcal${delta == null ? '' : ` (${delta >= 0 ? '+' : ''}${delta.toFixed(1)})`}${money}`);
 }
 console.log(`  ${result.items} item(s) in ${result.rows} day(s) ${apply ? 'rewritten' : 'would change'}`);
 

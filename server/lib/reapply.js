@@ -15,7 +15,7 @@
  * keys on diary.updated_at, so a bump is what makes the phone see it.
  */
 import db from '../db.js';
-import { foodScaleShape, linkedFoodId, reapplyItem, scaleForItem, nutritionEqual } from './reapply-nutrition.js';
+import { foodScaleShape, linkedFoodId, applyFood } from './reapply-nutrition.js';
 
 function loadFoods(ids) {
   const list = [...new Set(ids)].filter(n => Number.isFinite(n));
@@ -37,9 +37,9 @@ export function reapplyItems(items) {
     const id = linkedFoodId(item);
     const food = id === null ? null : foods.get(id);
     if (!food) return item;
-    const next = reapplyItem(item, food);
-    if (next !== item) changed = true;
-    return next;
+    const res = applyFood(item, food);
+    if (res.changed) changed = true;
+    return res.item;
   });
   return changed ? out : items;
 }
@@ -66,16 +66,19 @@ export function reapplyFoodToDiary(foodId, options = {}) {
     let touched = false;
     const nextItems = items.map(item => {
       if (linkedFoodId(item) !== food.id) return item;
-      const next = scaleForItem(food, item);
-      if (!next || nutritionEqual(item.nutrition, next)) return item;
+      const res = applyFood(item, food);
+      if (!res.changed) return item;
       touched = true;
       changes.push({
         date: entry.date,
         name: item.name,
         before: item.nutrition?.calories,
-        after: next.calories,
+        after: res.item.nutrition?.calories,
+        priceBefore: item.price ?? null,
+        priceAfter: res.item.price ?? null,
+        priceChanged: res.priceChanged,
       });
-      return { ...item, nutrition: next, updatedAt: nowIso };
+      return { ...res.item, updatedAt: nowIso };
     });
     if (touched) updates.push({ id: entry.id, items: JSON.stringify(nextItems) });
   }
@@ -113,11 +116,19 @@ export function reapplyAllDiary({ dryRun = false, nowIso, transaction = true } =
       const id = linkedFoodId(item);
       const food = id === null ? null : foods.get(id);
       if (!food) return item;
-      const next = scaleForItem(food, item);
-      if (!next || nutritionEqual(item.nutrition, next)) return item;
+      const res = applyFood(item, food);
+      if (!res.changed) return item;
       touched = true;
-      changes.push({ date: entry.date, name: item.name, before: item.nutrition?.calories, after: next.calories });
-      return { ...item, nutrition: next, updatedAt: stamp };
+      changes.push({
+        date: entry.date,
+        name: item.name,
+        before: item.nutrition?.calories,
+        after: res.item.nutrition?.calories,
+        priceBefore: item.price ?? null,
+        priceAfter: res.item.price ?? null,
+        priceChanged: res.priceChanged,
+      });
+      return { ...res.item, updatedAt: stamp };
     });
     if (touched) updates.push({ id: entry.id, items: JSON.stringify(nextItems) });
   }

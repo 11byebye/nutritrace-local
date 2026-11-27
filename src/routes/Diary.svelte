@@ -525,9 +525,10 @@
   // Animated calorie total formatted for the user's chosen energy unit (kcal/kJ)
   $: _sumEnergy = Nutrition.displayEnergy($_calTween, $energyUnit);
 
-  // Local fork (2026-11-15): the day's food cost. Items carry the price
-  // snapshot of the food they were logged from, so this needs no lookup.
-  // Null when nothing logged today was priced.
+  // Local fork (2026-11-15): the day's food cost. The item carries the
+  // food's package price and weight (re-derived on every food edit since
+  // 2026-11-28), so this needs no lookup. Null when nothing priced was
+  // logged today.
   $: _dayCost = sumCost((entry?.items || []).map(it => ({ cost: costOf(it, it.portion, it.unit) })));
 
   // Restore scroll position after food added from Foods page

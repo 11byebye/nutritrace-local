@@ -95,7 +95,8 @@ const _KEEP_FIELDS = [
   'id', 'food_server_id', 'is_recipe',              // hydration keys
   'food_device',                                    // which phone's own id `id` is, until it syncs
   'name', 'brand', 'portion', 'unit', 'quantity',   // history-protected snapshot
-  'nutrition', 'notes',                             // history-protected snapshot
+  'nutrition', 'notes',                             // re-derived / history-protected snapshot
+  'price', 'package_weight_g',                      // money follows the food too (2026-11-28)
   'imgUrl',                                         // scrubbed by _stripCachedPaths, hydrated on read
   'source', 'source_meal_id',                       // provenance (MCP writes / imports)
 ];

@@ -29,6 +29,8 @@ export function foodScaleShape(row) {
   }
   return {
     id: row.id,
+    price: row.price,
+    package_weight_g: row.package_weight_g,
     portion: row.portion,
     unit: row.unit,
     nutrition_basis: row.nutrition_basis,
@@ -49,6 +51,25 @@ export function linkedFoodId(item) {
   if (item.food_server_id === null) return null;
   const id = item.food_server_id ?? item.id;
   return typeof id === 'number' && Number.isFinite(id) ? id : null;
+}
+
+/**
+ * The food's money fields copied onto the item. The item stores the
+ * package price and the package weight; costOf() scales them to the
+ * logged portion. Both follow the food now, like nutrition.
+ */
+export function foodItemFields(food) {
+  return {
+    price: food?.price == null || food.price === '' ? null : Number(food.price),
+    package_weight_g: food?.package_weight_g == null || food.package_weight_g === '' ? null : Number(food.package_weight_g),
+  };
+}
+
+function sameNumber(a, b) {
+  const an = (a == null || a === '') ? null : Number(a);
+  const bn = (b == null || b === '') ? null : Number(b);
+  if (an === null || bn === null) return an === bn;
+  return Math.abs(an - bn) <= 1e-9;
 }
 
 /**
@@ -92,12 +113,28 @@ export function nutritionEqual(a, b) {
 }
 
 /**
- * Return the item with nutrition re-derived from `food`, or the same object
- * when nothing changed. Used on every diary save so a phone holding an old
- * copy cannot push the old number back over a correction.
+ * Return the item with nutrition and money re-derived from `food`, plus
+ * what changed. Used on every diary save so a phone holding an old copy
+ * cannot push either back over a correction.
  */
-export function reapplyItem(item, food) {
+export function applyFood(item, food) {
+  if (!item || !food) return { item, changed: false, nutritionChanged: false, priceChanged: false };
   const next = scaleForItem(food, item);
-  if (!next || nutritionEqual(item.nutrition, next)) return item;
-  return { ...item, nutrition: next };
+  const fields = foodItemFields(food);
+  const nutritionChanged = !!next && !nutritionEqual(item.nutrition, next);
+  const priceChanged = !sameNumber(item.price, fields.price)
+    || !sameNumber(item.package_weight_g, fields.package_weight_g);
+  if (!nutritionChanged && !priceChanged) {
+    return { item, changed: false, nutritionChanged: false, priceChanged: false };
+  }
+  const out = { ...item };
+  if (nutritionChanged) out.nutrition = next;
+  out.price = fields.price;
+  out.package_weight_g = fields.package_weight_g;
+  return { item: out, changed: true, nutritionChanged, priceChanged };
+}
+
+/** Item with nutrition and money re-derived, or the same object. */
+export function reapplyItem(item, food) {
+  return applyFood(item, food).item;
 }

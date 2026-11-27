@@ -67,3 +67,25 @@ test('an unchanged item is returned as the same object', () => {
   assert.equal(nutritionEqual({ calories: 260 }, { calories: 261 }), false);
   assert.equal(nutritionEqual({ calories: 260 }, { calories: 260, fat: 1 }), false);
 });
+
+test('money follows the food too', async () => {
+  const { applyFood, foodItemFields } = await import('../server/lib/reapply-nutrition.js');
+  const f = food({ nutrition: JSON.stringify({ calories: 260 }), price: 33.87, package_weight_g: 400 });
+  const item = { portion: 100, unit: 'g', nutrition: { calories: 260 }, price: 20, package_weight_g: 500 };
+  const res = applyFood(item, f);
+  assert.equal(res.changed, true);
+  assert.equal(res.nutritionChanged, false);
+  assert.equal(res.priceChanged, true);
+  assert.equal(res.item.price, 33.87);
+  assert.equal(res.item.package_weight_g, 400);
+  assert.equal(res.item.nutrition, item.nutrition, 'nutrition object untouched on a price-only change');
+
+  const same = applyFood({ ...item, price: 33.87, package_weight_g: 400 }, f);
+  assert.equal(same.changed, false);
+  assert.equal(same.item.nutrition.calories, 260);
+
+  const cleared = applyFood({ ...item, price: 33.87, package_weight_g: 400 }, food({ nutrition: '{}' }));
+  assert.equal(cleared.priceChanged, true);
+  assert.equal(cleared.item.price, null);
+  assert.deepEqual(foodItemFields({ price: '', package_weight_g: undefined }), { price: null, package_weight_g: null });
+});

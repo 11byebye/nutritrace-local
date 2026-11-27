@@ -88,7 +88,8 @@ const _norm = s => String(s || '').trim().toLowerCase();
  * keys, and live-resolve everything else on read.
  *
  * What gets re-attached (foods): nutrition_basis, alt_units, density_g_ml,
- * category, barcode — the fields the edit sheet + unit scaler read.
+ * category, barcode, price, package_weight_g — the fields the edit sheet,
+ * unit scaler and the diary's Cost line read.
  * NAME/BRAND/NUTRITION/PORTION/UNIT/QUANTITY/NOTES stay from the snapshot
  * (history protection). imgUrl stays owned by freshenItemImages.
  *
@@ -113,7 +114,7 @@ function _altUnitsArray(v) {
   return null;
 }
 
-const HYDRATE_FIELDS = ['nutrition_basis', 'alt_units', 'density_g_ml', 'category', 'barcode'];
+const HYDRATE_FIELDS = ['nutrition_basis', 'alt_units', 'density_g_ml', 'category', 'barcode', 'price', 'package_weight_g'];
 // The food an item came from. food_server_id null (the key there, the
 // value null) is an item the phone logged before its food reached the
 // server: its id is the phone's own, not a server id, so it names no food
@@ -133,7 +134,8 @@ export function hydrateItems(items, userId = null) {
     if (!foodIds.size) return items;
     const scope = foodScope(userId);
     const rows = db.prepare(
-      `SELECT f.id, f.nutrition_basis, f.alt_units, f.density_g_ml, f.category, f.barcode
+      `SELECT f.id, f.nutrition_basis, f.alt_units, f.density_g_ml, f.category, f.barcode,
+              f.price, f.package_weight_g
        FROM foods f WHERE f.id IN (SELECT value FROM json_each(@ids)) AND f.deleted_at IS NULL AND ${scope.sql}`
     ).all({ ...scope.args, ids: JSON.stringify(Array.from(foodIds)) });
     const byId = new Map(rows.map(r => [r.id, r]));

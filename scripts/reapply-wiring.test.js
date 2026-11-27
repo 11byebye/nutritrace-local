@@ -31,3 +31,18 @@ test('the one-shot backfill script exists', () => {
   assert.ok(existsSync(new URL('../server/scripts/reapply-nutrition.js', import.meta.url)));
   assert.match(read('../server/scripts/reapply-nutrition.js'), /reapplyAllDiary\(\{ dryRun: true \}\)/);
 });
+
+test('the client keeps and the server hydrates the money fields', () => {
+  const store = read('../src/stores/diary.js');
+  const keep = store.slice(store.indexOf('const _KEEP_FIELDS'));
+  assert.match(keep.slice(0, keep.indexOf('];')), /'price', 'package_weight_g'/);
+  const helpers = read('../server/lib/diary-helpers.js');
+  assert.match(helpers, /const HYDRATE_FIELDS = \[[^\]]*'price', 'package_weight_g'/);
+  assert.match(helpers, /f\.price, f\.package_weight_g/);
+});
+
+test('the backfill reports price-only changes', () => {
+  const src = read('../server/scripts/reapply-nutrition.js');
+  assert.match(src, /priceChanged/);
+  assert.match(src, /price \$\{c\.priceBefore/);
+});
