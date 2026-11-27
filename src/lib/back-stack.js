@@ -17,14 +17,55 @@
  */
 const stack = [];
 
+// Web back (the PWA on Android has no Capacitor listener): while a layer is
+// open, one spare history entry sits on top of the page. Back pops it and the
+// popstate handler closes the layer and puts the entry back, so the diary
+// underneath never navigates away. When the last layer closes any other way,
+// the spare entry is popped silently.
+let _guard = false;
+let _silent = false;
+const GUARD_STATE = { ntBackGuard: 1 };
+
+function _pushGuard() {
+  if (_guard || typeof window === 'undefined' || typeof history === 'undefined') return;
+  try { history.pushState(GUARD_STATE, ''); _guard = true; } catch { /* no history (tests, SSR) */ }
+}
+
+function _currentIsGuard() {
+  try { return !!(history.state && history.state.ntBackGuard); } catch { return false; }
+}
+
+function _popGuard() {
+  if (!_guard) return;
+  _guard = false;
+  // Closed because the page changed (a link, a tab): the spare entry is no
+  // longer on top, so leave it alone rather than undo the navigation.
+  if (!_currentIsGuard()) return;
+  _silent = true;
+  try { history.back(); } catch { _silent = false; }
+}
+
 /** Register `handler` for the next back press. Returns a release function. */
 export function onBack(handler) {
   const entry = { handler };
   stack.push(entry);
+  if (stack.length === 1) _pushGuard();
   return () => {
     const i = stack.indexOf(entry);
     if (i >= 0) stack.splice(i, 1);
+    if (stack.length === 0) _popGuard();
   };
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('popstate', () => {
+    if (_silent) { _silent = false; return; }
+    _guard = false;                       // the browser consumed the spare entry
+    if (!stack.length) return;            // nothing open: a normal page back
+    handleBack();
+    // More layers still open: keep the guard so the next back closes them.
+    if (stack.length) _pushGuard();
+  });
 }
 
 /**

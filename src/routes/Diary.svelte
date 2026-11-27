@@ -1376,6 +1376,9 @@
   let showItemAction = false;
   let actionItem     = null;
   let _lpTimer       = null;
+  // Set when the long-press timer opened the menu, so the click that follows
+  // the release does not open it a second time.
+  let _lpFired       = false;
   let showMoveToMeal = false;
 
   // ── Multi-select / bulk delete ──────────────────────────────────────────────
@@ -1426,9 +1429,11 @@
   }
 
   function onItemTouchStart(e, item) {
+    _lpFired = false;
     _lpTimer = setTimeout(() => {
       _lpTimer = null;
       if (selectMode) return;
+      _lpFired = true;
       actionItem = item;
       _lockAndOpen(() => showItemAction = true);
     }, 500);
@@ -1439,6 +1444,19 @@
   function onItemTouchEnd() {
     if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
   }
+
+  // A single tap on a logged food opens the action sheet (Edit, Replace,
+  // Move, Copy, Select, Delete) — never the edit sheet directly (user
+  // 2026-11-27: the long-press menu is the quick path, so tap should reach
+  // it too). Long-press and right-click keep opening the same sheet; the
+  // release click after a long-press is swallowed.
+  function openItemMenu(item) {
+    if (selectMode) { toggleItemSelect(item); return; }
+    if (_lpFired) { _lpFired = false; return; }
+    actionItem = item;
+    _lockAndOpen(() => showItemAction = true);
+  }
+
   function onItemAction(e) {
     const val = e.detail?.value;
     if (!actionItem) return;
@@ -2258,7 +2276,7 @@
                     </span>
                   </button>
                 {/if}
-                <button class="diary-item-btn" on:click={() => selectMode ? toggleItemSelect(item) : openEditItem(item)}>
+                <button class="diary-item-btn" on:click={() => openItemMenu(item)}>
                   {#if $diaryShowThumbnails && item.imgUrl && !_brokenThumbs.has(item.imgUrl)}
                     <!-- A photo that can't be fetched (offline, or removed on the
                          server) falls back to the same placeholder an item with no
