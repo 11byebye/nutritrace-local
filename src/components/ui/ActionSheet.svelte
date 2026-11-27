@@ -14,12 +14,21 @@
   const dispatch = createEventDispatcher();
   let _locked = false;
   let _lockTimer;
+  // A picked action usually opens another layer (the edit sheet, a meal
+  // picker, a confirm dialog) in the same tick. Sliding this panel away
+  // while the next one slides in put two backdrops and two panels on screen
+  // at once — a double dim and a stale menu sliding over the new sheet,
+  // which read as a flicker. Picking therefore drops the panel the same
+  // frame and fades only the scrim, timed to the next layer's own fade
+  // (Sheet 200, Dialog 180) so the dim does not dip between them.
+  let _leaving = false;
   $: if (open) {
     clearTimeout(_lockTimer);
+    _leaving = false;
     _locked = true;
     _lockTimer = setTimeout(() => _locked = false, 400);
   }
-  const pick     = (a) => { open = false; dispatch('select', a); };
+  const pick     = (a) => { _leaving = true; open = false; dispatch('select', a); };
   const cancel   = () => { if (!_locked) { open = false; dispatch('cancel'); } };
 </script>
 
@@ -27,11 +36,11 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div use:portal class="as-backdrop" on:click={cancel} use:closeOnBack={() => { open = false; dispatch('cancel'); }}
-    in:fade={{ duration: 180 }} out:fade={{ duration: 140 }}>
+    in:fade={{ duration: 180 }} out:fade={{ duration: _leaving ? 200 : 140 }}>
     <div
       class="as-panel"
       in:fly={{ y: 60, duration: 260, easing: cubicOut }}
-      out:fly={{ y: 60, duration: 180 }}
+      out:fly={{ y: 60, duration: _leaving ? 0 : 180 }}
       on:click|stopPropagation
     >
       <div class="as-handle"></div>
