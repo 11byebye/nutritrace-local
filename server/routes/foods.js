@@ -11,6 +11,7 @@ import { logger } from '../logger.js';
 import { ownerOrOptIn } from '../lib/outbound-policy.js';
 import { cleanCreateKey, findByCreateKey, setCreateKey } from '../lib/create-keys.js';
 import { pricePer100g, parseMoney } from '../lib/price.js';
+import { reapplyFoodToDiary } from '../lib/reapply.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -241,7 +242,11 @@ router.put('/:id', wrap(async (req, res) => {
     portion ?? existing.portion, unit ?? existing.unit, localImg,
     notes ?? existing.notes, category ?? existing.category, barcode ?? existing.barcode,
     visibility ?? existing.visibility, fav, nb, au, dg, pr, pw, req.params.id);
-  res.json(parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(req.params.id)));
+  // A food edit is retroactive: every live diary row logged from this food
+  // takes the new numbers at its own portion (user 2026-11-28). Runs in its
+  // own transaction and bumps each touched row's updated_at so phones pull.
+  const reapplied = reapplyFoodToDiary(Number(req.params.id));
+  res.json({ ...parse(db.prepare('SELECT * FROM foods WHERE id = ?').get(req.params.id)), reapplied });
 }));
 
 // ── POST /:id/used — bump usage_count + last_used_at ──────────────────────

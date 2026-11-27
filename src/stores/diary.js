@@ -77,10 +77,11 @@ function _stripCachedPaths(items) {
   });
 }
 
-// Fields that stay snapshotted on the diary item forever (history
-// protection: editing the source food/recipe later must not
-// retroactively rewrite what the user logged) plus the render-time
-// essentials the diary UI actually reads. Everything else on the source
+// The copy of the item this client keeps. `nutrition` is no longer frozen:
+// the server re-derives it from the food on every save and after a food
+// edit (user 2026-11-28), and the stored copy is the fallback while the
+// phone is offline or the food was deleted. `name`/`brand` stay as logged.
+// Everything else on the source
 // object — recipe ingredients (items[]), OFF metadata, category,
 // barcode, favorite/usage counters, timestamps, alt_units, etc. — is
 // dead cargo that ballooned the day's items JSON past the 5 MB PUT

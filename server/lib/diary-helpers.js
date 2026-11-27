@@ -8,11 +8,12 @@
  * Why imgUrl is LIVE-RESOLVED instead of trusted from the snapshot
  * ──────────────────────────────────────────────────────────────────
  * Diary items snapshot every field of the food at log time, including
- * imgUrl. Snapshot semantics are CORRECT for fields like name, brand, and
- * macros: a 100 kcal serving you ate last week should stay 100 kcal even if
- * the food row gets edited later (history protection). But snapshot
- * semantics are WRONG for imgUrl — the user always wants to see the food's
- * current image, not a frozen path that might:
+ * imgUrl. `nutrition` is no longer one of those frozen fields: the server
+ * re-derives it from the food (lib/reapply.js) on every diary save and after
+ * a food edit, and the stored copy is only the fallback for a food that no
+ * longer exists (user 2026-11-28). Snapshot semantics are still WRONG for
+ * imgUrl — the user always wants to see the food's current image, not a
+ * frozen path that might:
  *   - point at a file that no longer exists (boot migrations renamed it,
  *     manual cleanup, etc.)
  *   - have been corrupted by a buggy Capacitor-cache strip function

@@ -4,6 +4,7 @@ import { wrap } from '../logger.js';
 import { requireAuth, userMgmtActive } from '../middleware/auth.js';
 import { freshenItemImages, hydrateItems } from '../lib/diary-helpers.js';
 import { mergeEntries } from '../lib/diary-merge.js';
+import { reapplyItems } from '../lib/reapply.js';
 import { dispatchWebhookEvent } from '../lib/webhooks.js';
 import { getGoalsCore } from '../lib/mcp/tools/goals.js';
 import { dailyTotalsCore } from '../lib/mcp/tools/daily-totals.js';
@@ -139,8 +140,12 @@ router.put('/:date', wrap((req, res) => {
 
   // Merge. Any client entry with a uuid we've already tombstoned is
   // dropped; any server entry not mentioned by the client is preserved.
-  const { merged: mergedItems, newTombstoneUuids: newItemTombstones } =
+  const { merged: mergedRaw, newTombstoneUuids: newItemTombstones } =
     mergeEntries(serverItems, items || [], deletedItemUuids, priorItemTombstones);
+  // The food is the source of truth for nutrition, not the copy a client
+  // sent: without this a phone with an older cache could push a corrected
+  // food's old number back over it (user 2026-11-28).
+  const mergedItems = reapplyItems(mergedRaw);
   const { merged: mergedWater, newTombstoneUuids: newWaterTombstones } =
     mergeEntries(serverWater, water || [], deletedWaterUuids, priorWaterTombstones);
 

@@ -51,6 +51,10 @@ COPY src/lib/nutrition.js /src/lib/nutrition.js
 # scripts/docker-src-imports.test.js fails if a server import of src/lib has
 # no COPY line here.
 COPY src/lib/sleep-quality.js /src/lib/sleep-quality.js
+# Same arrangement for the unit scaler: the server recomputes a logged
+# item's nutrition with the exact math the client used at log time
+# (server/lib/reapply-nutrition.js).
+COPY src/lib/units.js /src/lib/units.js
 # Also ship the root package.json so the server can read APP_VERSION from
 # it at runtime when TRACEAPPS_APP_VERSION isn't injected via ARG below.
 # Keeps versioning working even for builds that don't pass the build-arg.
