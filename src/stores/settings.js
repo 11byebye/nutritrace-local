@@ -29,7 +29,7 @@ export const USER_PREFS = new Set([
   'bodyStatsOrder','hiddenBodyStats','foodCategories','customUnits',
   'diaryShowNutritionBar','diaryTotalsMode','macroLegendMode',
   'diaryShowBrands','diaryShowTimestamps','diaryShowThumbnails',
-  'diaryShowAllNutrients','diaryShowNutritionUnits','diaryShowMacroSummary',
+  'diaryShowAllNutrients','diaryShowNutritionUnits','diaryShowMacroSummary','diaryMacroValues',
   'diaryPromptQuantity','diaryShowPortionSize','diaryShowNotes','warnUnitMismatch','showUnitMetadata',
   'diaryShowCompletion',
   'diaryDefaultField',
@@ -560,6 +560,9 @@ export const diaryShowThumbnails    = createSettingStore('diaryShowThumbnails', 
 export const diaryShowAllNutrients  = createSettingStore('diaryShowAllNutrients',   false);
 export const diaryShowNutritionUnits= createSettingStore('diaryShowNutritionUnits', true);
 export const diaryShowMacroSummary  = createSettingStore('diaryShowMacroSummary',   true);
+// What the per-meal footer prints: whole grams (default) or the old percent
+// of that meal's calories. The bar itself stays a proportion either way.
+export const diaryMacroValues        = createSettingStore('diaryMacroValues',        'grams');
 export const diaryPromptQuantity    = createSettingStore('diaryPromptQuantity',     true);
 // Issues #69 + #70: opt-in master toggle that exposes the nutrition basis,
 // serving units, and density UI in the Food Editor + on the Add to Diary

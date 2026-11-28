@@ -44,7 +44,7 @@
   } from '../stores/diary.js';
   import { mealNames, goals, energyUnit, weightUnit, lengthUnit, navStyle,
            diaryShowBrands, diaryShowThumbnails,
-           diaryShowTimestamps, diaryShowMacroSummary, diaryPromptQuantity,
+           diaryShowTimestamps, diaryShowMacroSummary, diaryMacroValues, diaryPromptQuantity,
            diaryShowPortionSize, diaryShowNotes, diaryShowNutritionBar, diaryTotalsMode, macroLegendMode, distUnit,
            diaryShowAllNutrients, diaryShowNutritionUnits, visibleNutriments, hiddenBodyStats,
            showQuickCalories, quickCaloriesDisplay,
@@ -1218,7 +1218,14 @@
     // (it'd stop at the comma and yield 29), truncating meal kcal totals
     // above 1000 to the leading digit(s). The template handles display-side
     // commas via _mtEnergy.value.toLocaleString() below. (Issue #51)
-    return { cal: Nutrition.roundKcal10(cal), p, c, f };
+    // Whole grams for the footer's default mode (user 2026-11-28: grams,
+    // not percentages). The bar still uses p/c/f, which are proportions.
+    return {
+      cal: Nutrition.roundKcal10(cal), p, c, f,
+      pg: Math.round(t.proteins || 0),
+      cg: Math.round(t.carbohydrates || 0),
+      fg: Math.round(t.fat || 0),
+    };
   }
 
   function getMealItems(entryItems, mealIdx) {
@@ -2444,7 +2451,7 @@
                 <div class="mmb-c" style="width:{mt.c}%" title="Carbs {mt.c}%"></div>
                 <div class="mmb-f" style="width:{mt.f}%" title="Fat {mt.f}%"></div>
               </div>
-              <span class="meal-macro-text text-3 text-sm"><span style="color:var(--macro-protein)">{mt.p}% P</span> · <span style="color:var(--macro-carbs)">{mt.c}% C</span> · <span style="color:var(--macro-fat)">{mt.f}% F</span> · <span style="color:var(--macro-calories)">{_mtEnergy.value.toLocaleString()} {_mtEnergy.unit}</span></span>
+              <span class="meal-macro-text text-3 text-sm">{#if $diaryMacroValues === 'percent'}<span style="color:var(--macro-protein)">{mt.p}% P</span> · <span style="color:var(--macro-carbs)">{mt.c}% C</span> · <span style="color:var(--macro-fat)">{mt.f}% F</span>{:else}<span style="color:var(--macro-protein)">{mt.pg}g P</span> · <span style="color:var(--macro-carbs)">{mt.cg}g C</span> · <span style="color:var(--macro-fat)">{mt.fg}g F</span>{/if} · <span style="color:var(--macro-calories)">{_mtEnergy.value.toLocaleString()} {_mtEnergy.unit}</span></span>
             </button>
           {/if}
         {/if}

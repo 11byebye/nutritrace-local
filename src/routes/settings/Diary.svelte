@@ -7,7 +7,7 @@
   import {
     mealNames,
     diaryShowBrands, diaryShowTimestamps, diaryShowThumbnails, diaryShowAllNutrients,
-    diaryShowNutritionUnits, diaryShowMacroSummary, diaryPromptQuantity,
+    diaryShowNutritionUnits, diaryShowMacroSummary, diaryMacroValues, diaryPromptQuantity,
     diaryShowPortionSize, warnUnitMismatch, showUnitMetadata, diaryShowNotes, diaryShowCompletion, diaryDefaultField,
     diaryShowActivity, manualActivityPolicy, calorieAdjustFromActivity,
     showQuickCalories, quickCaloriesDisplay,
@@ -105,8 +105,16 @@
   <p class="settings-group-heading">Meal Card Layout</p>
   <p class="settings-group-sub">Header, footer, and interaction on each meal card.</p>
   <div class="card settings-card">
-    <SettingRow label={$_('settings_diary.show_macro_summary')} desc={$_('settings_diary.show_macro_summary_desc')} divider={false}>
+    <SettingRow label={$_('settings_diary.show_macro_summary')} desc={$_('settings_diary.show_macro_summary_desc')}>
       <Toggle checked={$diaryShowMacroSummary} on:change={e => diaryShowMacroSummary.set(e.detail)} />
+    </SettingRow>
+    <SettingRow label={$_('settings_diary.macro_values')} desc={$_('settings_diary.macro_values_desc')}>
+      <div class="select-wrap" style="width:150px">
+        <select class="select sel-sm" value={$diaryMacroValues} on:change={e => diaryMacroValues.set(e.currentTarget.value)}>
+          <option value="grams">{$_('settings_diary.opt_grams')}</option>
+          <option value="percent">{$_('settings_diary.opt_percent')}</option>
+        </select>
+      </div>
     </SettingRow>
     <SettingRow label={$_('settings_diary.ask_quantity')} desc={$_('settings_diary.ask_quantity_desc')}>
       <Toggle checked={$diaryPromptQuantity} on:change={e => diaryPromptQuantity.set(e.detail)} />
