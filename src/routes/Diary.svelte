@@ -2679,7 +2679,7 @@
   <!-- Text summary row — taps to expand/collapse -->
   <button class="dbb-summary-row" on:click={() => barExpanded = !barExpanded}
     aria-label="{barExpanded ? 'Collapse' : 'Expand'} nutrition panel">
-    <span class="dbb-summary-text"><span style="color:var(--macro-protein)">{_mp.protein}% P</span> · <span style="color:var(--macro-carbs)">{_mp.carbs}% C</span> · <span style="color:var(--macro-fat)">{_mp.fat}% F</span> · <span style="color:var(--macro-calories)">{_sumEnergy.value.toLocaleString()} {_sumEnergy.unit}</span>{#if _waterShowInDiary} · <span style="color:var(--water-blue)"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">water_drop</span> {_waterDisplay(_waterTotal)}</span>{/if}</span>
+    <span class="dbb-summary-text">{#if $diaryMacroValues === 'percent'}<span style="color:var(--macro-protein)">{_mp.protein}% P</span> · <span style="color:var(--macro-carbs)">{_mp.carbs}% C</span> · <span style="color:var(--macro-fat)">{_mp.fat}% F</span>{:else}<span style="color:var(--macro-protein)">{Math.round(totals.proteins || 0)}g P</span> · <span style="color:var(--macro-carbs)">{Math.round(totals.carbohydrates || 0)}g C</span> · <span style="color:var(--macro-fat)">{Math.round(totals.fat || 0)}g F</span>{/if} · <span style="color:var(--macro-calories)">{_sumEnergy.value.toLocaleString()} {_sumEnergy.unit}</span>{#if _waterShowInDiary} · <span style="color:var(--water-blue)"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">water_drop</span> {_waterDisplay(_waterTotal)}</span>{/if}</span>
     <span class="dbb-chevron material-symbols-rounded">{barExpanded ? 'expand_more' : 'expand_less'}</span>
   </button>
 
